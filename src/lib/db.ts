@@ -1,16 +1,16 @@
 // src/lib/db.ts
-import { PrismaClient } from '@/generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
-    max: 5,
-});
+const globalForDb = globalThis as unknown as { pool?: Pool };
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+export const pool =
+    globalForDb.pool ??
+    new Pool({
+        connectionString: process.env.DATABASE_URL,
+        max: 5,          // conservador para serverless, igual que veníamos planeando
+        ssl: { rejectUnauthorized: false }, // Neon/Supabase con pooler lo requieren en muchos casos
+    });
 
 if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = prisma;
+    globalForDb.pool = pool;
 }
