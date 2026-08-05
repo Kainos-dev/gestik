@@ -1,44 +1,25 @@
 // src/features/clientes/schema.ts
 import { z } from 'zod';
 
+const optionalString = (max: number) =>
+    z.preprocess(
+        (val) => (val === '' ? undefined : val),
+        z.string().trim().max(max).optional()
+    );
+
 // Reutilizamos el mismo enum de la base de datos, como single source of truth
 export const ESTADOS_CLIENTE = ['ACTIVO', 'PAUSADO', 'FINALIZADO'] as const;
 
 // Schema base con las reglas de negocio de cada campo
 export const ClienteSchema = z.object({
-    nombre: z
-        .string()
-        .trim()
-        .min(2, 'El nombre debe tener al menos 2 caracteres')
-        .max(120, 'El nombre es demasiado largo'),
-
-    empresa: z
-        .string()
-        .trim()
-        .max(120)
-        .optional()
-        .or(z.literal('').transform(() => undefined)),
-
-    email: z
-        .string()
-        .trim()
-        .email('Email inválido')
-        .optional()
-        .or(z.literal('').transform(() => undefined)),
-
-    whatsapp: z
-        .string()
-        .trim()
-        .max(30)
-        .optional()
-        .or(z.literal('').transform(() => undefined)),
-
-    observaciones: z
-        .string()
-        .trim()
-        .max(2000, 'Máximo 2000 caracteres')
-        .optional()
-        .or(z.literal('').transform(() => undefined)),
+    nombre: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').max(120),
+    empresa: optionalString(120),
+    email: z.preprocess(
+        (val) => (val === '' ? undefined : val),
+        z.string().trim().email('Email inválido').optional()
+    ),
+    whatsapp: optionalString(30),
+    observaciones: optionalString(2000),
 });
 
 // Para alta: todos los campos de ClienteSchema, tal cual

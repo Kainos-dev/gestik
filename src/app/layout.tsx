@@ -3,6 +3,9 @@ import "./globals.css";
 
 import { Providers } from "./providers";
 
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
 
 /* export const metadata: Metadata = {
   title: "Create Next App",
@@ -19,7 +22,7 @@ export default function RootLayout({
       lang="en"
       className={``}
     >
-      <body className="min-h-full flex flex-col">
+      <body className={`${inter.className} min-h-full flex flex-col`}>
         <Providers>{children}</Providers>
       </body>
     </html>

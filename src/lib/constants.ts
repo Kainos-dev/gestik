@@ -47,3 +47,11 @@ export const FRECUENCIA_LABELS: Record<string, string> = {
   MENSUAL: "Mensual",
   ANUAL: "Anual",
 };
+
+export const METODO_PAGO_LABELS: Record<string, string> = {
+  TRANSFERENCIA: 'Transferencia',
+  EFECTIVO: 'Efectivo',
+  MERCADO_PAGO: 'Mercado Pago',
+  TARJETA: 'Tarjeta',
+  OTRO: 'Otro',
+};
