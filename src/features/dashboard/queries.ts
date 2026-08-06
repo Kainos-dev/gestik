@@ -1,6 +1,7 @@
 // src/features/dashboard/queries.ts
 import { pool } from '@/lib/db';
 import { Pago, mapPago } from '@/features/pagos/types';
+import { getSaldoPorCliente } from '@/features/cargos/queries';
 
 export interface DashboardKpis {
     totalFacturadoMes: number;
@@ -10,26 +11,25 @@ export interface DashboardKpis {
 }
 
 export async function getKpis(): Promise<DashboardKpis> {
-    const [facturado, cobrado, pendiente, clientes] = await Promise.all([
+    const [facturado, cobrado, clientes, saldos] = await Promise.all([
+        pool.query(
+            `SELECT COALESCE(SUM(monto), 0) AS total
+       FROM cargos
+       WHERE date_trunc('month', periodo) = date_trunc('month', CURRENT_DATE)`
+        ),
         pool.query(
             `SELECT COALESCE(SUM(monto), 0) AS total
        FROM pagos
        WHERE date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)`
         ),
-        pool.query(
-            `SELECT COALESCE(SUM(monto), 0) AS total
-       FROM pagos
-       WHERE estado = 'PAGADO'
-         AND date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)`
-        ),
-        pool.query(`SELECT COALESCE(SUM(monto), 0) AS total FROM pagos WHERE estado = 'PENDIENTE'`),
         pool.query(`SELECT COUNT(*) AS total FROM clientes WHERE estado = 'ACTIVO'`),
+        getSaldoPorCliente(),
     ]);
 
     return {
         totalFacturadoMes: Number(facturado.rows[0].total),
         totalCobradoMes: Number(cobrado.rows[0].total),
-        totalPendiente: Number(pendiente.rows[0].total),
+        totalPendiente: saldos.reduce((acc, s) => acc + s.saldo, 0),
         clientesActivos: Number(clientes.rows[0].total),
     };
 }

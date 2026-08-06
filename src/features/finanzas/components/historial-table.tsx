@@ -4,11 +4,9 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Pago } from '@/features/pagos/types';
 import { DataTable } from '@/components/shared/data-table';
-import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { METODO_PAGO_LABELS } from '@/lib/constants';
-import { calcularEstadoMostrado } from '@/features/pagos/services';
 import { Download } from 'lucide-react';
 
 function formatCurrency(value: number) {
@@ -16,13 +14,12 @@ function formatCurrency(value: number) {
 }
 
 function exportarCsv(pagos: Pago[]) {
-    const encabezado = ['Fecha', 'Cliente', 'Monto', 'Método', 'Estado', 'Notas'];
+    const encabezado = ['Fecha', 'Cliente', 'Monto', 'Método', 'Notas'];
     const filas = pagos.map((p) => [
         formatDate(p.fecha),
         p.clienteNombre ?? '',
         p.monto.toString(),
         METODO_PAGO_LABELS[p.metodoPago],
-        calcularEstadoMostrado(p.estado, p.fecha),
         (p.notas ?? '').replace(/[\n,]/g, ' '), // evita romper el CSV si hay comas o saltos de línea en las notas
     ]);
 
@@ -45,11 +42,6 @@ const columns: ColumnDef<Pago>[] = [
         accessorKey: 'metodoPago',
         header: 'Método',
         cell: ({ row }) => METODO_PAGO_LABELS[row.original.metodoPago],
-    },
-    {
-        id: 'estadoMostrado',
-        header: 'Estado',
-        cell: ({ row }) => <StatusBadge value={calcularEstadoMostrado(row.original.estado, row.original.fecha)} />,
     },
 ];
 

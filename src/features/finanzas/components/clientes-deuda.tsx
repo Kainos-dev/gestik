@@ -18,7 +18,7 @@ export function ClientesDeuda({ clientes }: { clientes: ClienteConDeuda[] }) {
                     <div>
                         <p className="font-medium">{c.clienteNombre}</p>
                         <p className="text-muted-foreground">
-                            {c.cantidadPagos} pago{c.cantidadPagos > 1 ? 's' : ''} pendiente{c.cantidadPagos > 1 ? 's' : ''}
+                            {c.cantidadCargos} cargo{c.cantidadCargos !== 1 ? 's' : ''} pendiente{c.cantidadCargos !== 1 ? 's' : ''}
                         </p>
                     </div>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 font-medium">

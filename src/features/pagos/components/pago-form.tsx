@@ -7,7 +7,7 @@ import { useTransition, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
-import { PagoSchema, PagoInput, METODOS_PAGO, ESTADOS_PAGO_GUARDADO } from '../schema';
+import { PagoSchema, PagoInput, METODOS_PAGO } from '../schema';
 import { crearPago, editarPago } from '../actions';
 import { Pago } from '../types';
 import { Cliente } from '@/features/clients/types';
@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { METODO_PAGO_LABELS, ESTADO_STYLES, TIPO_SERVICIO_LABELS } from '@/lib/constants';
+import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 
 interface ServicioOption {
     id: string;
@@ -35,10 +35,12 @@ interface PagoFormProps {
     clientes: Cliente[];
     pago?: Pago;
     clienteIdFijo?: string; // cuando se registra desde el detalle de un cliente
+    servicioIdFijo?: string; // cuando se registra desde un cargo puntual
+    montoSugerido?: number; // precarga el monto (ej. el saldo pendiente del cargo)
     onSuccess?: () => void;
 }
 
-export function PagoForm({ clientes, pago, clienteIdFijo, onSuccess }: PagoFormProps) {
+export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoSugerido, onSuccess }: PagoFormProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const esEdicion = Boolean(pago);
@@ -54,11 +56,10 @@ export function PagoForm({ clientes, pago, clienteIdFijo, onSuccess }: PagoFormP
         resolver: zodResolver(PagoSchema),
         defaultValues: {
             clienteId: pago?.clienteId ?? clienteIdFijo ?? '',
-            servicioId: pago?.servicioId ?? '',
+            servicioId: pago?.servicioId ?? servicioIdFijo ?? '',
             fecha: pago?.fecha ?? new Date(),
-            monto: pago?.monto ?? 0,
+            monto: pago?.monto ?? montoSugerido ?? 0,
             metodoPago: pago?.metodoPago ?? 'TRANSFERENCIA',
-            estado: pago?.estado ?? 'PENDIENTE',
             comprobanteUrl: pago?.comprobanteUrl ?? '',
             notas: pago?.notas ?? '',
         },
@@ -124,27 +125,29 @@ export function PagoForm({ clientes, pago, clienteIdFijo, onSuccess }: PagoFormP
                 </div>
             )}
 
-            <div className="space-y-1.5">
-                <Label htmlFor="servicioId">Servicio (opcional)</Label>
-                <Controller
-                    name="servicioId"
-                    control={control}
-                    render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange} disabled={!clienteSeleccionado}>
-                            <SelectTrigger id="servicioId">
-                                <SelectValue placeholder="Sin asociar a un servicio puntual" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {servicios.map((s) => (
-                                    <SelectItem key={s.id} value={s.id}>
-                                        {s.tipo === 'OTRO' ? s.nombre_personalizado : TIPO_SERVICIO_LABELS[s.tipo]}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
-                />
-            </div>
+            {!servicioIdFijo && (
+                <div className="space-y-1.5">
+                    <Label htmlFor="servicioId">Servicio (opcional)</Label>
+                    <Controller
+                        name="servicioId"
+                        control={control}
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange} disabled={!clienteSeleccionado}>
+                                <SelectTrigger id="servicioId">
+                                    <SelectValue placeholder="Sin asociar a un servicio puntual" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {servicios.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            {s.tipo === 'OTRO' ? s.nombre_personalizado : TIPO_SERVICIO_LABELS[s.tipo]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -167,50 +170,26 @@ export function PagoForm({ clientes, pago, clienteIdFijo, onSuccess }: PagoFormP
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <Label htmlFor="metodoPago">Método de pago *</Label>
-                    <Controller
-                        name="metodoPago"
-                        control={control}
-                        render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger id="metodoPago">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {METODOS_PAGO.map((m) => (
-                                        <SelectItem key={m} value={m}>
-                                            {METODO_PAGO_LABELS[m]}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                </div>
-
-                <div className="space-y-1.5">
-                    <Label htmlFor="estado">Estado *</Label>
-                    <Controller
-                        name="estado"
-                        control={control}
-                        render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger id="estado">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ESTADOS_PAGO_GUARDADO.map((estado) => (
-                                        <SelectItem key={estado} value={estado}>
-                                            {ESTADO_STYLES[estado]?.label ?? estado}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                </div>
+            <div className="space-y-1.5">
+                <Label htmlFor="metodoPago">Método de pago *</Label>
+                <Controller
+                    name="metodoPago"
+                    control={control}
+                    render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger id="metodoPago">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {METODOS_PAGO.map((m) => (
+                                    <SelectItem key={m} value={m}>
+                                        {METODO_PAGO_LABELS[m]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
             </div>
 
             <div className="space-y-1.5">

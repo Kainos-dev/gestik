@@ -1,7 +1,5 @@
 // src/features/pagos/types.ts
 export type MetodoPago = 'TRANSFERENCIA' | 'EFECTIVO' | 'MERCADO_PAGO' | 'TARJETA' | 'OTRO';
-export type EstadoPagoGuardado = 'PENDIENTE' | 'PAGADO'; // lo único que se guarda en la DB
-export type EstadoPagoMostrado = 'PENDIENTE' | 'PAGADO' | 'VENCIDO'; // lo que se muestra en la UI
 
 export interface Pago {
     id: string;
@@ -12,7 +10,6 @@ export interface Pago {
     fecha: Date;
     monto: number;
     metodoPago: MetodoPago;
-    estado: EstadoPagoGuardado;
     comprobanteUrl: string | null;
     notas: string | null;
     createdAt: Date;
@@ -29,7 +26,6 @@ export function mapPago(row: any): Pago {
         fecha: row.fecha,
         monto: Number(row.monto), // numeric viene como string desde pg
         metodoPago: row.metodo_pago,
-        estado: row.estado,
         comprobanteUrl: row.comprobante_url,
         notas: row.notas,
         createdAt: row.created_at,

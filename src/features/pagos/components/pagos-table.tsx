@@ -4,42 +4,14 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Pago } from '../types';
 import { DataTable } from '@/components/shared/data-table';
-import { StatusBadge } from '@/components/shared/status-badge';
-import { METODO_PAGO_LABELS } from '@/lib/constants';
-import { calcularEstadoMostrado } from '../services';
-import { Button } from '@/components/ui/button';
-import { marcarComoPagado } from '../actions';
-import { toast } from 'sonner';
-import { useTransition } from 'react';
+import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
-
-
-function AccionMarcarPagado({ pago }: { pago: Pago }) {
-    const [isPending, startTransition] = useTransition();
-    if (pago.estado === 'PAGADO') return null;
-
-    return (
-        <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending}
-            onClick={() =>
-                startTransition(async () => {
-                    await marcarComoPagado(pago.id, pago.clienteId);
-                    toast.success('Pago marcado como pagado');
-                })
-            }
-        >
-            Marcar pagado
-        </Button>
-    );
-}
 
 const columns: ColumnDef<Pago>[] = [
     {
         accessorKey: 'fecha',
         header: 'Fecha',
-        cell: ({ row }) => formatDate(row.original.fecha), // antes: new Date(...).toLocaleDateString('es-AR')
+        cell: ({ row }) => formatDate(row.original.fecha),
     },
     { accessorKey: 'clienteNombre', header: 'Cliente' },
     {
@@ -54,16 +26,13 @@ const columns: ColumnDef<Pago>[] = [
         cell: ({ row }) => METODO_PAGO_LABELS[row.original.metodoPago],
     },
     {
-        id: 'estadoMostrado',
-        header: 'Estado',
-        cell: ({ row }) => (
-            <StatusBadge value={calcularEstadoMostrado(row.original.estado, row.original.fecha)} />
-        ),
-    },
-    {
-        id: 'acciones',
-        header: '',
-        cell: ({ row }) => <AccionMarcarPagado pago={row.original} />,
+        accessorKey: 'servicioNombre',
+        header: 'Servicio',
+        cell: ({ row }) => {
+            const tipo = row.original.servicioNombre;
+            if (!tipo) return '—';
+            return TIPO_SERVICIO_LABELS[tipo] ?? tipo;
+        },
     },
 ];
 

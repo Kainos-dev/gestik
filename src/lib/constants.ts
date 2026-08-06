@@ -17,10 +17,14 @@ export const ESTADO_STYLES: Record<
     className: "bg-gray-100 text-gray-600 border-gray-200",
   },
 
-  // Pago
+  // Pago / Cargo
   PENDIENTE: {
     label: "Pendiente",
     className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  },
+  PARCIAL: {
+    label: "Parcial",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   PAGADO: {
     label: "Pagado",
@@ -53,5 +57,15 @@ export const METODO_PAGO_LABELS: Record<string, string> = {
   EFECTIVO: 'Efectivo',
   MERCADO_PAGO: 'Mercado Pago',
   TARJETA: 'Tarjeta',
+  OTRO: 'Otro',
+};
+
+export const CATEGORIA_GASTO_LABELS: Record<string, string> = {
+  SOFTWARE: 'Software',
+  HOSTING: 'Hosting',
+  EQUIPAMIENTO: 'Equipamiento',
+  MARKETING: 'Marketing',
+  IMPUESTOS: 'Impuestos',
+  OFICINA: 'Oficina',
   OTRO: 'Otro',
 };

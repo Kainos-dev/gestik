@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Wrench, CreditCard, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, Wrench, CreditCard, Receipt, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -11,7 +11,8 @@ const NAV_ITEMS = [
     { href: '/clients', label: 'Clientes', icon: Users },
     { href: '/services', label: 'Servicios', icon: Wrench },
     { href: '/pagos', label: 'Pagos', icon: CreditCard },
-    { href: '/finanzas', label: 'Finanzas', icon: TrendingUp },
+    { href: '/gastos', label: 'Gastos', icon: Receipt },
+    { href: '/gestion', label: 'Gestion', icon: TrendingUp },
 ];
 
 export function Sidebar() {

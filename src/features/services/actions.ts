@@ -13,12 +13,10 @@ export async function crearServicio(data: ServicioInput) {
     parsed.frecuencia,
   );
 
-  console.log(parsed);
-  console.log(parsed.tipo);
-
-  await pool.query(
+  const { rows } = await pool.query(
     `INSERT INTO servicios (cliente_id, tipo, nombre_personalizado, precio, frecuencia, fecha_inicio, proximo_vencimiento)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id`,
     [
       parsed.clienteId,
       parsed.tipo,
@@ -30,7 +28,16 @@ export async function crearServicio(data: ServicioInput) {
     ],
   );
 
+  // El primer período también genera su cargo, igual que "Renovar" hará con los siguientes
+  await pool.query(
+    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto)
+     VALUES ($1, $2, $3, $4)`,
+    [parsed.clienteId, rows[0].id, parsed.fechaInicio, parsed.precio],
+  );
+
   revalidatePath("/servicios");
+  revalidatePath("/pagos");
+  revalidatePath("/gestion");
   revalidatePath(`/clientes/${parsed.clienteId}`);
 }
 
@@ -68,14 +75,15 @@ export async function renovarServicio(servicioId: string) {
   const { rows } = await pool.query(`SELECT * FROM servicios WHERE id = $1`, [servicioId]);
   const servicio = rows[0];
   if (!servicio || servicio.frecuencia === 'UNICO') return;
+  if (servicio.estado !== 'ACTIVO') return;
 
   const fechaBase = servicio.proximo_vencimiento ?? servicio.fecha_inicio;
   const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia);
 
-  // 1. Genera el pago pendiente correspondiente a este período
+  // 1. Genera el cargo correspondiente a este período
   await pool.query(
-    `INSERT INTO pagos (cliente_id, servicio_id, fecha, monto, metodo_pago, estado)
-     VALUES ($1, $2, $3, $4, 'TRANSFERENCIA', 'PENDIENTE')`,
+    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto)
+     VALUES ($1, $2, $3, $4)`,
     [servicio.cliente_id, servicio.id, fechaBase, servicio.precio]
   );
 
@@ -87,5 +95,5 @@ export async function renovarServicio(servicioId: string) {
 
   revalidatePath('/servicios');
   revalidatePath('/pagos');
-  revalidatePath('/finanzas');
+  revalidatePath('/gestion');
 }

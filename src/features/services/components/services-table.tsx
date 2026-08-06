@@ -27,7 +27,7 @@ function AccionRenovar({ servicio }: { servicio: Servicio }) {
         startTransition(async () => {
           try {
             await renovarServicio(servicio.id);
-            toast.success('Servicio renovado, pago pendiente generado');
+            toast.success('Servicio renovado, cargo generado');
           } catch (error) {
             toast.error('Ocurrió un error al renovar el servicio');
             console.error(error);
