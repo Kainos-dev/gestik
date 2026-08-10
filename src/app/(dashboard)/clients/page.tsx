@@ -1,7 +1,7 @@
 // src/app/(dashboard)/clients/page.tsx
 import { getClientes } from "@/features/clients/queries";
 import { ClientesTable } from "@/features/clients/components/clientes-table";
-import { NuevoClienteDialog } from "@/features/clients/components/new-client-dialog.tsx";
+import { NuevoClienteDialog } from "@/features/clients/components/new-client-dialog";
 
 export default async function ClientesPage() {
   const clientes = await getClientes(); // Server Component: pega directo a pg, sin Query
