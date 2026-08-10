@@ -31,7 +31,8 @@ const ClienteFormSchema = ClienteSchema.extend({
     estado: z.enum(ESTADOS_CLIENTE).optional(),
 });
 
-type ClienteFormValues = z.infer<typeof ClienteFormSchema>;
+type ClienteFormInput = z.input<typeof ClienteFormSchema>;
+type ClienteFormValues = z.output<typeof ClienteFormSchema>;
 
 interface ClienteFormProps {
     cliente?: Cliente;
@@ -48,7 +49,7 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
         handleSubmit,
         control,
         formState: { errors },
-    } = useForm<ClienteFormValues>({
+    } = useForm<ClienteFormInput, any, ClienteFormValues>({
         resolver: zodResolver(ClienteFormSchema),
         defaultValues: {
             nombre: cliente?.nombre ?? '',

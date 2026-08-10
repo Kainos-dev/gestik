@@ -37,4 +37,5 @@ export const ServicioSchema = z
     path: ['nombrePersonalizado'],
   });
 
-export type ServicioInput = z.infer<typeof ServicioSchema>;
+export type ServicioFormInput = z.input<typeof ServicioSchema>;
+export type ServicioInput = z.output<typeof ServicioSchema>;

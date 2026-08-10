@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 import {
   ServicioSchema,
+  ServicioFormInput,
   ServicioInput,
   TIPOS_SERVICIO,
   FRECUENCIAS_SERVICIO,
@@ -16,7 +17,7 @@ import {
 } from "../schema";
 import { crearServicio, editarServicio } from "../actions";
 import { Servicio } from "../types";
-import { Cliente } from "@/features/clientes/types";
+import { Cliente } from "@/features/clients/types";
 import { MONEDAS } from "@/lib/moneda";
 
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function ServicioForm({
     control,
     watch,
     formState: { errors },
-  } = useForm<ServicioInput>({
+  } = useForm<ServicioFormInput, undefined, ServicioInput>({
     resolver: zodResolver(ServicioSchema),
     defaultValues: {
       clienteId: servicio?.clienteId ?? clienteIdFijo ?? "",

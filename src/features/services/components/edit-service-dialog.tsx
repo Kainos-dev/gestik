@@ -11,9 +11,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ServicioForm } from "./servicio-form";
+import { ServicioForm } from "./service-form";
 import { Servicio } from "../types";
-import { Cliente } from "@/features/clientes/types";
+import { Cliente } from "@/features/clients/types";
 
 export function EditarServicioDialog({
   servicio,
