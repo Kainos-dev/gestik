@@ -6,6 +6,7 @@ import { Pago } from '../types';
 import { DataTable } from '@/components/shared/data-table';
 import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/moneda';
 
 const columns: ColumnDef<Pago>[] = [
     {
@@ -17,8 +18,7 @@ const columns: ColumnDef<Pago>[] = [
     {
         accessorKey: 'monto',
         header: 'Monto',
-        cell: ({ row }) =>
-            new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(row.original.monto),
+        cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
     },
     {
         accessorKey: 'metodoPago',

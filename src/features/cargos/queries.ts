@@ -1,6 +1,7 @@
 // src/features/cargos/queries.ts
 import { pool } from '@/lib/db';
 import { Cargo, mapCargo } from './types';
+import { Moneda } from '@/lib/moneda';
 
 // Cuánto se cubrió de cada cargo, aplicando los pagos del servicio en orden
 // (el cargo más viejo se cubre primero — "waterfall"). El sobrante no
@@ -28,7 +29,7 @@ export async function getCargos(): Promise<Cargo[]> {
        LEFT JOIN pagos_por_servicio pps ON pps.servicio_id = c.servicio_id
      )
      SELECT
-       a.id, a.cliente_id, a.servicio_id, a.periodo, a.monto, a.notas, a.created_at, a.updated_at,
+       a.id, a.cliente_id, a.servicio_id, a.periodo, a.monto, a.moneda, a.notas, a.created_at, a.updated_at,
        cl.nombre AS cliente_nombre,
        s.tipo AS servicio_tipo,
        s.nombre_personalizado AS servicio_nombre_personalizado,
@@ -44,39 +45,42 @@ export async function getCargos(): Promise<Cargo[]> {
 export interface SaldoCliente {
     clienteId: string;
     clienteNombre: string;
+    moneda: Moneda;
     saldo: number;
     cantidadCargos: number;
 }
 
-// Saldo pendiente por cliente (cargos - pagos, sin bajar de 0), sumando TODOS
-// los pagos del cliente incluidos los que no están asociados a un servicio
-// puntual. A diferencia de getCargos(), acá el clampeo es por cliente antes
-// de cualquier suma agregada — el crédito de un cliente nunca debe
-// compensar la deuda de otro.
+// Saldo pendiente por cliente Y MONEDA (cargos - pagos, sin bajar de 0),
+// sumando TODOS los pagos del cliente en esa moneda, incluidos los que no
+// están asociados a un servicio puntual. El agrupado es por (cliente, moneda)
+// a propósito: un crédito en USD nunca debe compensar una deuda en ARS del
+// mismo cliente, ni la de otro cliente.
 export async function getSaldoPorCliente(): Promise<SaldoCliente[]> {
     const { rows } = await pool.query(
         `WITH cargos_cliente AS (
-       SELECT cliente_id, SUM(monto) AS total_cargos, COUNT(*) AS cantidad_cargos
+       SELECT cliente_id, moneda, SUM(monto) AS total_cargos, COUNT(*) AS cantidad_cargos
        FROM cargos
-       GROUP BY cliente_id
+       GROUP BY cliente_id, moneda
      ),
      pagos_cliente AS (
-       SELECT cliente_id, SUM(monto) AS total_pagado
+       SELECT cliente_id, moneda, SUM(monto) AS total_pagado
        FROM pagos
-       GROUP BY cliente_id
+       GROUP BY cliente_id, moneda
      )
      SELECT
        c.id AS cliente_id,
        c.nombre AS cliente_nombre,
-       GREATEST(0, COALESCE(cc.total_cargos, 0) - COALESCE(pc.total_pagado, 0)) AS saldo,
-       COALESCE(cc.cantidad_cargos, 0) AS cantidad_cargos
-     FROM clientes c
-     JOIN cargos_cliente cc ON cc.cliente_id = c.id
-     LEFT JOIN pagos_cliente pc ON pc.cliente_id = c.id`
+       cc.moneda,
+       GREATEST(0, cc.total_cargos - COALESCE(pc.total_pagado, 0)) AS saldo,
+       cc.cantidad_cargos
+     FROM cargos_cliente cc
+     JOIN clientes c ON c.id = cc.cliente_id
+     LEFT JOIN pagos_cliente pc ON pc.cliente_id = cc.cliente_id AND pc.moneda = cc.moneda`
     );
     return rows.map((r) => ({
         clienteId: r.cliente_id,
         clienteNombre: r.cliente_nombre,
+        moneda: r.moneda,
         saldo: Number(r.saldo),
         cantidadCargos: Number(r.cantidad_cargos),
     }));

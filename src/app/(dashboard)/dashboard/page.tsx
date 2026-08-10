@@ -4,10 +4,7 @@ import { KpiCard } from '@/features/dashboard/components/kpi-card';
 import { VencimientosList } from '@/features/dashboard/components/vencimientos-list';
 import { UltimosMovimientos } from '@/features/dashboard/components/ultimos-movimientos';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
+import { formatCurrency } from '@/lib/moneda';
 
 export default async function DashboardPage() {
     const [kpis, vencimientos, movimientos] = await Promise.all([
@@ -20,10 +17,24 @@ export default async function DashboardPage() {
         <div className="space-y-6">
             <h1 className="text-2xl font-semibold">Dashboard</h1>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard label="Facturado del mes" value={formatCurrency(kpis.totalFacturadoMes)} />
-                <KpiCard label="Cobrado del mes" value={formatCurrency(kpis.totalCobradoMes)} />
-                <KpiCard label="Total pendiente" value={formatCurrency(kpis.totalPendiente)} />
+            {kpis.porMoneda.map((k) => (
+                <div key={k.moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <KpiCard
+                        label={`Facturado del mes (${k.moneda})`}
+                        value={formatCurrency(k.totalFacturadoMes, k.moneda)}
+                    />
+                    <KpiCard
+                        label={`Cobrado del mes (${k.moneda})`}
+                        value={formatCurrency(k.totalCobradoMes, k.moneda)}
+                    />
+                    <KpiCard
+                        label={`Pendiente (${k.moneda})`}
+                        value={formatCurrency(k.totalPendiente, k.moneda)}
+                    />
+                </div>
+            ))}
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <KpiCard label="Clientes activos" value={String(kpis.clientesActivos)} />
             </div>
 

@@ -1,5 +1,6 @@
 // src/features/gastos/schema.ts
 import { z } from 'zod';
+import { MONEDAS } from '@/lib/moneda';
 
 const optionalString = (max: number) =>
     z.preprocess(
@@ -25,6 +26,7 @@ export const GastoFijoSchema = z.object({
     nombre: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').max(120),
     categoria: z.enum(CATEGORIAS_GASTO),
     monto: z.coerce.number().positive('El monto debe ser mayor a 0'),
+    moneda: z.enum(MONEDAS),
     frecuencia: z.enum(FRECUENCIAS_GASTO),
     fechaInicio: z.coerce.date(),
     estado: z.enum(ESTADOS_GASTO_FIJO).optional(),
@@ -39,6 +41,9 @@ export const GastoSchema = z.object({
     categoria: z.enum(CATEGORIAS_GASTO),
     descripcion: z.string().trim().min(2, 'La descripción debe tener al menos 2 caracteres').max(200),
     monto: z.coerce.number().positive('El monto debe ser mayor a 0'),
+    // Se usa solo cuando NO hay gastoFijoId: si lo hay, el server action usa
+    // la moneda del gasto fijo (igual que pagos hereda la del servicio).
+    moneda: z.enum(MONEDAS),
     fecha: z.coerce.date(),
     notas: optionalString(2000),
 });

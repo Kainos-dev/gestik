@@ -1,10 +1,7 @@
 // src/features/finanzas/components/clientes-deuda.tsx
 import { ClienteConDeuda } from '../queries';
 import { Badge } from '@/components/ui/badge';
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
+import { formatCurrency } from '@/lib/moneda';
 
 export function ClientesDeuda({ clientes }: { clientes: ClienteConDeuda[] }) {
     if (clientes.length === 0) {
@@ -14,7 +11,8 @@ export function ClientesDeuda({ clientes }: { clientes: ClienteConDeuda[] }) {
     return (
         <ul className="space-y-3">
             {clientes.map((c) => (
-                <li key={c.clienteId} className="flex items-center justify-between text-sm">
+                // clienteId + moneda: un mismo cliente puede tener deuda en ARS y en USD a la vez
+                <li key={`${c.clienteId}:${c.moneda}`} className="flex items-center justify-between text-sm">
                     <div>
                         <p className="font-medium">{c.clienteNombre}</p>
                         <p className="text-muted-foreground">
@@ -22,7 +20,7 @@ export function ClientesDeuda({ clientes }: { clientes: ClienteConDeuda[] }) {
                         </p>
                     </div>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 font-medium">
-                        {formatCurrency(c.deuda)}
+                        {formatCurrency(c.deuda, c.moneda)}
                     </Badge>
                 </li>
             ))}

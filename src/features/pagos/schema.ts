@@ -1,5 +1,6 @@
 // src/features/pagos/schema.ts
 import { z } from 'zod';
+import { MONEDAS } from '@/lib/moneda';
 
 const optionalString = (max: number) =>
     z.preprocess(
@@ -15,6 +16,9 @@ export const PagoSchema = z.object({
     servicioId: optionalString(50),
     fecha: z.coerce.date(),
     monto: z.coerce.number().positive('El monto debe ser mayor a 0'),
+    // Solo se usa cuando el pago NO está asociado a un servicio: si hay
+    // servicioId, el server action ignora esto y usa la moneda del servicio.
+    moneda: z.enum(MONEDAS),
     metodoPago: z.enum(METODOS_PAGO),
     comprobanteUrl: z.preprocess(
         (val) => (val === '' ? undefined : val),

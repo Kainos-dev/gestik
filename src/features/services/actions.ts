@@ -14,14 +14,15 @@ export async function crearServicio(data: ServicioInput) {
   );
 
   const { rows } = await pool.query(
-    `INSERT INTO servicios (cliente_id, tipo, nombre_personalizado, precio, frecuencia, fecha_inicio, proximo_vencimiento)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO servicios (cliente_id, tipo, nombre_personalizado, precio, moneda, frecuencia, fecha_inicio, proximo_vencimiento)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
     [
       parsed.clienteId,
       parsed.tipo,
       parsed.nombrePersonalizado ?? null,
       parsed.precio,
+      parsed.moneda,
       parsed.frecuencia,
       parsed.fechaInicio,
       proximoVencimiento,
@@ -30,9 +31,9 @@ export async function crearServicio(data: ServicioInput) {
 
   // El primer período también genera su cargo, igual que "Renovar" hará con los siguientes
   await pool.query(
-    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto)
-     VALUES ($1, $2, $3, $4)`,
-    [parsed.clienteId, rows[0].id, parsed.fechaInicio, parsed.precio],
+    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto, moneda)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [parsed.clienteId, rows[0].id, parsed.fechaInicio, parsed.precio, parsed.moneda],
   );
 
   revalidatePath("/servicios");
@@ -50,14 +51,15 @@ export async function editarServicio(id: string, data: ServicioInput) {
 
   await pool.query(
     `UPDATE servicios
-     SET tipo = $1, nombre_personalizado = $2, precio = $3, frecuencia = $4,
-         fecha_inicio = $5, proximo_vencimiento = $6, estado = COALESCE($7, estado),
+     SET tipo = $1, nombre_personalizado = $2, precio = $3, moneda = $4, frecuencia = $5,
+         fecha_inicio = $6, proximo_vencimiento = $7, estado = COALESCE($8, estado),
          updated_at = now()
-     WHERE id = $8`,
+     WHERE id = $9`,
     [
       parsed.tipo,
       parsed.nombrePersonalizado ?? null,
       parsed.precio,
+      parsed.moneda,
       parsed.frecuencia,
       parsed.fechaInicio,
       proximoVencimiento,
@@ -82,9 +84,9 @@ export async function renovarServicio(servicioId: string) {
 
   // 1. Genera el cargo correspondiente a este período
   await pool.query(
-    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto)
-     VALUES ($1, $2, $3, $4)`,
-    [servicio.cliente_id, servicio.id, fechaBase, servicio.precio]
+    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto, moneda)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [servicio.cliente_id, servicio.id, fechaBase, servicio.precio, servicio.moneda]
   );
 
   // 2. Avanza el vencimiento del servicio al siguiente ciclo

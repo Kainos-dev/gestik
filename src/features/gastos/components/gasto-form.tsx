@@ -23,6 +23,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
+import { MONEDAS } from '@/lib/moneda';
 
 interface GastoFormProps {
     gastosFijos: GastoFijo[]; // para asociar (opcional) el gasto a un gasto fijo existente
@@ -49,22 +50,25 @@ export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
             categoria: gasto?.categoria ?? 'OTRO',
             descripcion: gasto?.descripcion ?? '',
             monto: gasto?.monto ?? 0,
+            moneda: gasto?.moneda ?? 'ARS',
             fecha: gasto?.fecha ?? new Date(),
             notas: gasto?.notas ?? '',
         },
     });
 
     const gastoFijoSeleccionado = watch('gastoFijoId');
+    const gastoFijoElegido = gastosFijos.find((g) => g.id === gastoFijoSeleccionado);
 
-    // Al elegir un gasto fijo, precarga categoría/descripción/monto (se pueden ajustar después)
+    // Al elegir un gasto fijo, precarga categoría/descripción/monto/moneda
+    // (categoría, descripción y monto se pueden ajustar después; la moneda
+    // no, porque el gasto tiene que quedar en la misma moneda que el fijo)
     useEffect(() => {
-        if (!gastoFijoSeleccionado) return;
-        const gastoFijo = gastosFijos.find((g) => g.id === gastoFijoSeleccionado);
-        if (!gastoFijo) return;
-        setValue('categoria', gastoFijo.categoria);
-        setValue('descripcion', gastoFijo.nombre);
-        setValue('monto', gastoFijo.monto);
-    }, [gastoFijoSeleccionado, gastosFijos, setValue]);
+        if (!gastoFijoElegido) return;
+        setValue('categoria', gastoFijoElegido.categoria);
+        setValue('descripcion', gastoFijoElegido.nombre);
+        setValue('monto', gastoFijoElegido.monto);
+        setValue('moneda', gastoFijoElegido.moneda);
+    }, [gastoFijoElegido, setValue]);
 
     function onSubmit(data: GastoInput) {
         startTransition(async () => {
@@ -134,7 +138,31 @@ export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
 
                 <div className="space-y-1.5">
                     <Label htmlFor="monto">Monto *</Label>
-                    <Input id="monto" type="number" step="0.01" {...register('monto')} />
+                    <div className="flex gap-2">
+                        <Input id="monto" type="number" step="0.01" className="flex-1" {...register('monto')} />
+                        <Controller
+                            name="moneda"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                    disabled={Boolean(gastoFijoElegido)}
+                                >
+                                    <SelectTrigger id="moneda" className="w-24">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MONEDAS.map((moneda) => (
+                                            <SelectItem key={moneda} value={moneda}>
+                                                {moneda}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </div>
                     {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
                 </div>
             </div>

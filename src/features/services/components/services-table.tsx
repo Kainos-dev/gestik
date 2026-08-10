@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { TIPO_SERVICIO_LABELS, FRECUENCIA_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/moneda';
 
 function AccionRenovar({ servicio }: { servicio: Servicio }) {
   const [isPending, startTransition] = useTransition();
@@ -53,8 +54,7 @@ const columns: ColumnDef<Servicio>[] = [
   {
     accessorKey: 'precio',
     header: 'Precio',
-    cell: ({ row }) =>
-      new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(row.original.precio),
+    cell: ({ row }) => formatCurrency(row.original.precio, row.original.moneda),
   },
   {
     accessorKey: 'frecuencia',

@@ -1,4 +1,6 @@
 // src/features/gastos/types.ts
+import { Moneda } from '@/lib/moneda';
+
 export type CategoriaGasto =
     | 'SOFTWARE'
     | 'HOSTING'
@@ -16,6 +18,7 @@ export interface GastoFijo {
     nombre: string;
     categoria: CategoriaGasto;
     monto: number;
+    moneda: Moneda;
     frecuencia: FrecuenciaGasto;
     fechaInicio: Date;
     proximoVencimiento: Date | null;
@@ -31,6 +34,7 @@ export function mapGastoFijo(row: any): GastoFijo {
         nombre: row.nombre,
         categoria: row.categoria,
         monto: Number(row.monto),
+        moneda: row.moneda,
         frecuencia: row.frecuencia,
         fechaInicio: row.fecha_inicio,
         proximoVencimiento: row.proximo_vencimiento,
@@ -48,6 +52,7 @@ export interface Gasto {
     categoria: CategoriaGasto;
     descripcion: string;
     monto: number;
+    moneda: Moneda;
     fecha: Date;
     notas: string | null;
     createdAt: Date;
@@ -62,6 +67,7 @@ export function mapGasto(row: any): Gasto {
         categoria: row.categoria,
         descripcion: row.descripcion,
         monto: Number(row.monto),
+        moneda: row.moneda,
         fecha: row.fecha,
         notas: row.notas,
         createdAt: row.created_at,

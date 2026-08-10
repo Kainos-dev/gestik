@@ -28,7 +28,7 @@ export async function getPagosByCliente(clienteId: string): Promise<Pago[]> {
 // Para el selector de servicio dentro del form de pagos (sólo servicios de ese cliente)
 export async function getServiciosParaSelector(clienteId: string) {
     const { rows } = await pool.query(
-        `SELECT id, tipo, nombre_personalizado FROM servicios WHERE cliente_id = $1 AND estado = 'ACTIVO' ORDER BY tipo`,
+        `SELECT id, tipo, nombre_personalizado, moneda FROM servicios WHERE cliente_id = $1 AND estado = 'ACTIVO' ORDER BY tipo`,
         [clienteId]
     );
     return rows;

@@ -14,10 +14,7 @@ import { ClientesDeuda } from '@/features/finanzas/components/clientes-deuda';
 import { HistorialTable } from '@/features/finanzas/components/historial-table';
 import { KpiCard } from '@/features/dashboard/components/kpi-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
+import { MONEDAS, formatCurrency } from '@/lib/moneda';
 
 export default async function GestionPage() {
     const [
@@ -38,17 +35,24 @@ export default async function GestionPage() {
         getTotalGastosMes(),
     ]);
 
-    const balanceMes = totalIngresosMes - totalGastosMes;
+    // Balance por moneda: no tiene sentido restar gastos en USD de ingresos en ARS.
+    const balancePorMoneda = MONEDAS.map((moneda) => {
+        const ingresos = totalIngresosMes.find((i) => i.moneda === moneda)?.total ?? 0;
+        const gastos = totalGastosMes.find((g) => g.moneda === moneda)?.total ?? 0;
+        return { moneda, ingresos, gastos, balance: ingresos - gastos };
+    });
 
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-semibold">Gestión</h1>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <KpiCard label="Ingresos del mes" value={formatCurrency(totalIngresosMes)} />
-                <KpiCard label="Gastos del mes" value={formatCurrency(totalGastosMes)} />
-                <KpiCard label="Balance del mes" value={formatCurrency(balanceMes)} />
-            </div>
+            {balancePorMoneda.map((b) => (
+                <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <KpiCard label={`Ingresos del mes (${b.moneda})`} value={formatCurrency(b.ingresos, b.moneda)} />
+                    <KpiCard label={`Gastos del mes (${b.moneda})`} value={formatCurrency(b.gastos, b.moneda)} />
+                    <KpiCard label={`Balance del mes (${b.moneda})`} value={formatCurrency(b.balance, b.moneda)} />
+                </div>
+            ))}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card>

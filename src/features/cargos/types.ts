@@ -1,4 +1,6 @@
 // src/features/cargos/types.ts
+import { Moneda } from '@/lib/moneda';
+
 export type EstadoCargo = 'PENDIENTE' | 'PARCIAL' | 'PAGADO' | 'VENCIDO';
 
 export interface Cargo {
@@ -10,6 +12,7 @@ export interface Cargo {
     servicioNombrePersonalizado?: string | null;
     periodo: Date;
     monto: number;
+    moneda: Moneda;
     montoCubierto: number; // calculado en la query (waterfall de pagos), no se guarda
     notas: string | null;
     createdAt: Date;
@@ -26,6 +29,7 @@ export function mapCargo(row: any): Cargo {
         servicioNombrePersonalizado: row.servicio_nombre_personalizado ?? undefined,
         periodo: row.periodo,
         monto: Number(row.monto),
+        moneda: row.moneda,
         montoCubierto: Number(row.monto_cubierto),
         notas: row.notas,
         createdAt: row.created_at,

@@ -7,18 +7,16 @@ import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { METODO_PAGO_LABELS } from '@/lib/constants';
+import { formatCurrency } from '@/lib/moneda';
 import { Download } from 'lucide-react';
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
-
 function exportarCsv(pagos: Pago[]) {
-    const encabezado = ['Fecha', 'Cliente', 'Monto', 'Método', 'Notas'];
+    const encabezado = ['Fecha', 'Cliente', 'Monto', 'Moneda', 'Método', 'Notas'];
     const filas = pagos.map((p) => [
         formatDate(p.fecha),
         p.clienteNombre ?? '',
         p.monto.toString(),
+        p.moneda,
         METODO_PAGO_LABELS[p.metodoPago],
         (p.notas ?? '').replace(/[\n,]/g, ' '), // evita romper el CSV si hay comas o saltos de línea en las notas
     ]);
@@ -37,7 +35,7 @@ function exportarCsv(pagos: Pago[]) {
 const columns: ColumnDef<Pago>[] = [
     { accessorKey: 'fecha', header: 'Fecha', cell: ({ row }) => formatDate(row.original.fecha) },
     { accessorKey: 'clienteNombre', header: 'Cliente' },
-    { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => formatCurrency(row.original.monto) },
+    { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda) },
     {
         accessorKey: 'metodoPago',
         header: 'Método',

@@ -8,12 +8,9 @@ import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/moneda';
 import { Cliente } from '@/features/clients/types';
 import { RegistrarPagoCargoButton } from './registrar-pago-cargo-button';
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
 
 function nombreServicio(cargo: Cargo) {
     if (cargo.servicioTipo === 'OTRO') return cargo.servicioNombrePersonalizado ?? 'Otro';
@@ -47,12 +44,12 @@ function columnas(clientes: Cliente[], pendientesPorServicio: Map<string, number
         {
             accessorKey: 'monto',
             header: 'Monto',
-            cell: ({ row }) => formatCurrency(row.original.monto),
+            cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
         },
         {
             id: 'cubierto',
             header: 'Cubierto',
-            cell: ({ row }) => formatCurrency(row.original.montoCubierto),
+            cell: ({ row }) => formatCurrency(row.original.montoCubierto, row.original.moneda),
         },
         {
             id: 'estado',

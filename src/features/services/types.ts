@@ -1,4 +1,6 @@
 // src/features/servicios/types.ts
+import { Moneda } from "@/lib/moneda";
+
 export type TipoServicio =
   | "DESARROLLO_WEB"
   | "MARKETING"
@@ -18,6 +20,7 @@ export interface Servicio {
   tipo: TipoServicio;
   nombrePersonalizado: string | null;
   precio: number;
+  moneda: Moneda;
   frecuencia: FrecuenciaServicio;
   fechaInicio: Date;
   proximoVencimiento: Date | null;
@@ -34,6 +37,7 @@ export function mapServicio(row: any): Servicio {
     tipo: row.tipo,
     nombrePersonalizado: row.nombre_personalizado,
     precio: Number(row.precio),
+    moneda: row.moneda,
     frecuencia: row.frecuencia,
     fechaInicio: row.fecha_inicio,
     proximoVencimiento: row.proximo_vencimiento,

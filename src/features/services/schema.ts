@@ -1,5 +1,6 @@
 // src/features/servicios/schema.ts
 import { z } from "zod";
+import { MONEDAS } from "@/lib/moneda";
 
 const optionalString = (max: number) =>
   z.preprocess(
@@ -26,6 +27,7 @@ export const ServicioSchema = z
     tipo: z.enum(TIPOS_SERVICIO),
     nombrePersonalizado: optionalString(120),
     precio: z.coerce.number().positive('El precio debe ser mayor a 0'),
+    moneda: z.enum(MONEDAS),
     frecuencia: z.enum(FRECUENCIAS_SERVICIO),
     fechaInicio: z.coerce.date(),
     estado: z.enum(ESTADOS_SERVICIO).optional(),

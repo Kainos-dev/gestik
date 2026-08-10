@@ -6,10 +6,7 @@ import { Gasto } from '../types';
 import { DataTable } from '@/components/shared/data-table';
 import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
+import { formatCurrency } from '@/lib/moneda';
 
 const columns: ColumnDef<Gasto>[] = [
     { accessorKey: 'fecha', header: 'Fecha', cell: ({ row }) => formatDate(row.original.fecha) },
@@ -22,7 +19,7 @@ const columns: ColumnDef<Gasto>[] = [
     {
         accessorKey: 'monto',
         header: 'Monto',
-        cell: ({ row }) => formatCurrency(row.original.monto),
+        cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
     },
     {
         accessorKey: 'gastoFijoNombre',

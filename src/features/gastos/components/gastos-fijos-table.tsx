@@ -11,10 +11,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { CATEGORIA_GASTO_LABELS, FRECUENCIA_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
+import { formatCurrency } from '@/lib/moneda';
 
 function AccionRegistrar({ gastoFijo }: { gastoFijo: GastoFijo }) {
     const [isPending, startTransition] = useTransition();
@@ -53,7 +50,7 @@ const columns: ColumnDef<GastoFijo>[] = [
     {
         accessorKey: 'monto',
         header: 'Monto',
-        cell: ({ row }) => formatCurrency(row.original.monto),
+        cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
     },
     {
         accessorKey: 'frecuencia',

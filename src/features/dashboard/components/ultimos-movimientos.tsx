@@ -1,6 +1,7 @@
 // src/features/dashboard/components/ultimos-movimientos.tsx
 import { Pago } from '@/features/pagos/types';
 import { formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/moneda';
 
 export function UltimosMovimientos({ pagos }: { pagos: Pago[] }) {
     if (pagos.length === 0) {
@@ -21,9 +22,7 @@ export function UltimosMovimientos({ pagos }: { pagos: Pago[] }) {
                     <tr key={p.id} className="border-b last:border-0">
                         <td className="py-2">{formatDate(p.fecha)}</td>
                         <td className="py-2">{p.clienteNombre}</td>
-                        <td className="py-2">
-                            {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(p.monto)}
-                        </td>
+                        <td className="py-2">{formatCurrency(p.monto, p.moneda)}</td>
                     </tr>
                 ))}
             </tbody>

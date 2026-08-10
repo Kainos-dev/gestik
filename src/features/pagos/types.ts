@@ -1,4 +1,6 @@
 // src/features/pagos/types.ts
+import { Moneda } from '@/lib/moneda';
+
 export type MetodoPago = 'TRANSFERENCIA' | 'EFECTIVO' | 'MERCADO_PAGO' | 'TARJETA' | 'OTRO';
 
 export interface Pago {
@@ -9,6 +11,7 @@ export interface Pago {
     servicioNombre?: string;
     fecha: Date;
     monto: number;
+    moneda: Moneda;
     metodoPago: MetodoPago;
     comprobanteUrl: string | null;
     notas: string | null;
@@ -25,6 +28,7 @@ export function mapPago(row: any): Pago {
         servicioNombre: row.servicio_nombre ?? undefined,
         fecha: row.fecha,
         monto: Number(row.monto), // numeric viene como string desde pg
+        moneda: row.moneda,
         metodoPago: row.metodo_pago,
         comprobanteUrl: row.comprobante_url,
         notas: row.notas,

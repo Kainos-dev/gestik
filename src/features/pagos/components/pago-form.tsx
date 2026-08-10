@@ -24,11 +24,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
+import { MONEDAS, Moneda } from '@/lib/moneda';
 
 interface ServicioOption {
     id: string;
     tipo: string;
     nombre_personalizado: string | null;
+    moneda: Moneda;
 }
 
 interface PagoFormProps {
@@ -51,6 +53,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
         handleSubmit,
         control,
         watch,
+        setValue,
         formState: { errors },
     } = useForm<PagoInput>({
         resolver: zodResolver(PagoSchema),
@@ -59,6 +62,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             servicioId: pago?.servicioId ?? servicioIdFijo ?? '',
             fecha: pago?.fecha ?? new Date(),
             monto: pago?.monto ?? montoSugerido ?? 0,
+            moneda: pago?.moneda ?? 'ARS',
             metodoPago: pago?.metodoPago ?? 'TRANSFERENCIA',
             comprobanteUrl: pago?.comprobanteUrl ?? '',
             notas: pago?.notas ?? '',
@@ -66,6 +70,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
     });
 
     const clienteSeleccionado = watch('clienteId');
+    const servicioSeleccionado = watch('servicioId');
 
     // Cuando cambia el cliente, recarga la lista de servicios disponibles para asociar
     useEffect(() => {
@@ -78,6 +83,13 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             .then(setServicios)
             .catch(() => setServicios([]));
     }, [clienteSeleccionado]);
+
+    // El pago hereda la moneda del servicio elegido (no se puede pagar en otra) —
+    // el selector de moneda solo queda editable cuando no hay servicio asociado.
+    const servicioElegido = servicios.find((s) => s.id === servicioSeleccionado);
+    useEffect(() => {
+        if (servicioElegido) setValue('moneda', servicioElegido.moneda);
+    }, [servicioElegido, setValue]);
 
     function onSubmit(data: PagoInput) {
         startTransition(async () => {
@@ -152,7 +164,36 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="monto">Monto *</Label>
-                    <Input id="monto" type="number" step="0.01" {...register('monto')} />
+                    <div className="flex gap-2">
+                        <Input id="monto" type="number" step="0.01" className="flex-1" {...register('monto')} />
+                        <Controller
+                            name="moneda"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                    disabled={Boolean(servicioElegido)}
+                                >
+                                    <SelectTrigger id="moneda" className="w-24">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MONEDAS.map((moneda) => (
+                                            <SelectItem key={moneda} value={moneda}>
+                                                {moneda}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </div>
+                    {servicioElegido && (
+                        <p className="text-xs text-muted-foreground">
+                            Moneda fijada por el servicio asociado.
+                        </p>
+                    )}
                     {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
                 </div>
 

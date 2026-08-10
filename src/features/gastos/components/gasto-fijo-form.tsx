@@ -29,6 +29,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { CATEGORIA_GASTO_LABELS, FRECUENCIA_LABELS, ESTADO_STYLES } from '@/lib/constants';
+import { MONEDAS } from '@/lib/moneda';
 
 interface GastoFijoFormProps {
     gastoFijo?: GastoFijo; // si viene, es edición
@@ -51,6 +52,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
             nombre: gastoFijo?.nombre ?? '',
             categoria: gastoFijo?.categoria ?? 'SOFTWARE',
             monto: gastoFijo?.monto ?? 0,
+            moneda: gastoFijo?.moneda ?? 'ARS',
             frecuencia: gastoFijo?.frecuencia ?? 'MENSUAL',
             fechaInicio: gastoFijo?.fechaInicio ?? new Date(),
             estado: gastoFijo?.estado,
@@ -134,7 +136,27 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="monto">Monto *</Label>
-                    <Input id="monto" type="number" step="0.01" {...register('monto')} />
+                    <div className="flex gap-2">
+                        <Input id="monto" type="number" step="0.01" className="flex-1" {...register('monto')} />
+                        <Controller
+                            name="moneda"
+                            control={control}
+                            render={({ field }) => (
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                    <SelectTrigger id="moneda" className="w-24">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MONEDAS.map((moneda) => (
+                                            <SelectItem key={moneda} value={moneda}>
+                                                {moneda}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </div>
                     {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
                 </div>
 

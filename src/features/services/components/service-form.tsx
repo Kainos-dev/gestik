@@ -17,6 +17,7 @@ import {
 import { crearServicio, editarServicio } from "../actions";
 import { Servicio } from "../types";
 import { Cliente } from "@/features/clientes/types";
+import { MONEDAS } from "@/lib/moneda";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ export function ServicioForm({
       tipo: servicio?.tipo ?? "DESARROLLO_WEB",
       nombrePersonalizado: servicio?.nombrePersonalizado ?? "",
       precio: servicio?.precio ?? 0,
+      moneda: servicio?.moneda ?? "ARS",
       frecuencia: servicio?.frecuencia ?? "MENSUAL",
       fechaInicio: servicio?.fechaInicio ?? new Date(),
       estado: servicio?.estado,
@@ -188,12 +190,33 @@ export function ServicioForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="precio">Precio *</Label>
-          <Input
-            id="precio"
-            type="number"
-            step="0.01"
-            {...register("precio")}
-          />
+          <div className="flex gap-2">
+            <Input
+              id="precio"
+              type="number"
+              step="0.01"
+              className="flex-1"
+              {...register("precio")}
+            />
+            <Controller
+              name="moneda"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="moneda" className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONEDAS.map((moneda) => (
+                      <SelectItem key={moneda} value={moneda}>
+                        {moneda}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
           {errors.precio && (
             <p className="text-sm text-red-600">{errors.precio.message}</p>
           )}

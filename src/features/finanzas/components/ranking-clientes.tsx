@@ -1,33 +1,50 @@
 // src/features/finanzas/components/ranking-clientes.tsx
 import { IngresoCliente } from '../queries';
+import { MONEDAS, formatCurrency } from '@/lib/moneda';
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
-}
-
+// El ranking se agrupa por moneda: un top-10 mezclando ARS y USD no se puede
+// ordenar ni graficar con una sola barra de forma que tenga sentido (100 USD
+// y 100.000 ARS no son comparables).
 export function RankingClientes({ ingresos }: { ingresos: IngresoCliente[] }) {
     if (ingresos.length === 0) {
         return <p className="text-sm text-muted-foreground">Todavía no hay pagos cobrados.</p>;
     }
 
-    const max = Math.max(...ingresos.map((i) => i.total));
+    const grupos = MONEDAS.map((moneda) => ({
+        moneda,
+        items: ingresos.filter((i) => i.moneda === moneda),
+    })).filter((g) => g.items.length > 0);
 
     return (
-        <ul className="space-y-3">
-            {ingresos.map((c) => (
-                <li key={c.clienteId} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                        <span className="font-medium">{c.clienteNombre}</span>
-                        <span className="text-muted-foreground">{formatCurrency(c.total)}</span>
+        <div className="space-y-5">
+            {grupos.map((grupo) => {
+                const max = Math.max(...grupo.items.map((i) => i.total));
+                return (
+                    <div key={grupo.moneda} className="space-y-3">
+                        {grupos.length > 1 && (
+                            <p className="text-xs font-medium text-muted-foreground">{grupo.moneda}</p>
+                        )}
+                        <ul className="space-y-3">
+                            {grupo.items.map((c) => (
+                                <li key={c.clienteId} className="space-y-1">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="font-medium">{c.clienteNombre}</span>
+                                        <span className="text-muted-foreground">
+                                            {formatCurrency(c.total, c.moneda)}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                        <div
+                                            className="h-full bg-primary rounded-full"
+                                            style={{ width: `${(c.total / max) * 100}%` }}
+                                        />
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${(c.total / max) * 100}%` }}
-                        />
-                    </div>
-                </li>
-            ))}
-        </ul>
+                );
+            })}
+        </div>
     );
 }
