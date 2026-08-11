@@ -13,6 +13,10 @@ export type CategoriaGasto =
 export type FrecuenciaGasto = 'MENSUAL' | 'ANUAL';
 export type EstadoGastoFijo = 'ACTIVO' | 'PAUSADO' | 'FINALIZADO';
 
+// Estado de pago calculado (no se guarda en la DB), separado del ciclo de
+// vida (EstadoGastoFijo) — ver calcularEstadoPagoGastoFijo en services.ts.
+export type EstadoPagoGastoFijo = 'AL_DIA' | 'VENCIDO';
+
 export interface GastoFijo {
     id: string;
     nombre: string;

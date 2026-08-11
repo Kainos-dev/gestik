@@ -42,6 +42,11 @@ function columnas(clientes: Cliente[], pendientesPorServicio: Map<string, number
             cell: ({ row }) => formatDate(row.original.periodo),
         },
         {
+            accessorKey: 'vencimiento',
+            header: 'Vencimiento',
+            cell: ({ row }) => formatDate(row.original.vencimiento),
+        },
+        {
             accessorKey: 'monto',
             header: 'Monto',
             cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
@@ -56,7 +61,7 @@ function columnas(clientes: Cliente[], pendientesPorServicio: Map<string, number
             header: 'Estado',
             cell: ({ row }) => (
                 <StatusBadge
-                    value={calcularEstadoCargo(row.original.monto, row.original.montoCubierto, row.original.periodo)}
+                    value={calcularEstadoCargo(row.original.monto, row.original.montoCubierto, row.original.vencimiento)}
                 />
             ),
         },

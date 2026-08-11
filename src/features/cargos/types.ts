@@ -11,6 +11,7 @@ export interface Cargo {
     servicioTipo?: string;
     servicioNombrePersonalizado?: string | null;
     periodo: Date;
+    vencimiento: Date;
     monto: number;
     moneda: Moneda;
     montoCubierto: number; // calculado en la query (waterfall de pagos), no se guarda
@@ -28,6 +29,7 @@ export function mapCargo(row: any): Cargo {
         servicioTipo: row.servicio_tipo ?? undefined,
         servicioNombrePersonalizado: row.servicio_nombre_personalizado ?? undefined,
         periodo: row.periodo,
+        vencimiento: row.vencimiento,
         monto: Number(row.monto),
         moneda: row.moneda,
         montoCubierto: Number(row.monto_cubierto),

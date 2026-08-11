@@ -29,11 +29,14 @@ export async function crearServicio(data: ServicioInput) {
     ],
   );
 
-  // El primer período también genera su cargo, igual que "Renovar" hará con los siguientes
+  // El primer período también genera su cargo, igual que "Renovar" hará con
+  // los siguientes. Si es UNICO no hay "próximo período", así que vence en
+  // el propio período (se debe apenas se emite).
+  const vencimientoCargo = proximoVencimiento ?? parsed.fechaInicio;
   await pool.query(
-    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto, moneda)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [parsed.clienteId, rows[0].id, parsed.fechaInicio, parsed.precio, parsed.moneda],
+    `INSERT INTO cargos (cliente_id, servicio_id, periodo, vencimiento, monto, moneda)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [parsed.clienteId, rows[0].id, parsed.fechaInicio, vencimientoCargo, parsed.precio, parsed.moneda],
   );
 
   revalidatePath("/servicios");
@@ -82,11 +85,12 @@ export async function renovarServicio(servicioId: string) {
   const fechaBase = servicio.proximo_vencimiento ?? servicio.fecha_inicio;
   const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia);
 
-  // 1. Genera el cargo correspondiente a este período
+  // 1. Genera el cargo correspondiente a este período (vence al arrancar el
+  //    próximo, nunca es UNICO en este flujo — ver early return arriba)
   await pool.query(
-    `INSERT INTO cargos (cliente_id, servicio_id, periodo, monto, moneda)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [servicio.cliente_id, servicio.id, fechaBase, servicio.precio, servicio.moneda]
+    `INSERT INTO cargos (cliente_id, servicio_id, periodo, vencimiento, monto, moneda)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [servicio.cliente_id, servicio.id, fechaBase, nuevoVencimiento, servicio.precio, servicio.moneda]
   );
 
   // 2. Avanza el vencimiento del servicio al siguiente ciclo

@@ -6,6 +6,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { GastoFijo } from '../types';
 import { registrarGastoDelMes } from '../actions';
+import { calcularEstadoPagoGastoFijo } from '../services';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,13 @@ function AccionRegistrar({ gastoFijo }: { gastoFijo: GastoFijo }) {
             variant="outline"
             size="sm"
             disabled={isPending}
-            onClick={() =>
+            onClick={() => {
+                const periodo = gastoFijo.proximoVencimiento ? formatDate(gastoFijo.proximoVencimiento) : 'este período';
+                const confirmado = window.confirm(
+                    `¿Registrar "${gastoFijo.nombre}" (${periodo})?\n\nSe va a generar un nuevo gasto y el próximo vencimiento va a avanzar al siguiente período.`,
+                );
+                if (!confirmado) return;
+
                 startTransition(async () => {
                     try {
                         await registrarGastoDelMes(gastoFijo.id);
@@ -32,8 +39,8 @@ function AccionRegistrar({ gastoFijo }: { gastoFijo: GastoFijo }) {
                         toast.error('Ocurrió un error al registrar el gasto');
                         console.error(error);
                     }
-                })
-            }
+                });
+            }}
         >
             Registrar del mes
         </Button>
@@ -62,6 +69,14 @@ const columns: ColumnDef<GastoFijo>[] = [
         header: 'Próx. vencimiento',
         cell: ({ row }) =>
             row.original.proximoVencimiento ? formatDate(row.original.proximoVencimiento) : '—',
+    },
+    {
+        id: 'estadoPago',
+        header: 'Estado de pago',
+        cell: ({ row }) => {
+            const estadoPago = calcularEstadoPagoGastoFijo(row.original.estado, row.original.proximoVencimiento);
+            return estadoPago ? <StatusBadge value={estadoPago} /> : <span className="text-muted-foreground text-sm">—</span>;
+        },
     },
     {
         accessorKey: 'estado',

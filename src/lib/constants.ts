@@ -34,6 +34,12 @@ export const ESTADO_STYLES: Record<
     label: "Vencido",
     className: "bg-red-100 text-red-700 border-red-200",
   },
+
+  // Gasto fijo (estado de pago calculado, ver calcularEstadoPagoGastoFijo)
+  AL_DIA: {
+    label: "Al día",
+    className: "bg-green-100 text-green-700 border-green-200",
+  },
 };
 
 export const TIPO_SERVICIO_LABELS: Record<string, string> = {

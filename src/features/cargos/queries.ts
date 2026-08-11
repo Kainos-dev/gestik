@@ -29,7 +29,7 @@ export async function getCargos(): Promise<Cargo[]> {
        LEFT JOIN pagos_por_servicio pps ON pps.servicio_id = c.servicio_id
      )
      SELECT
-       a.id, a.cliente_id, a.servicio_id, a.periodo, a.monto, a.moneda, a.notas, a.created_at, a.updated_at,
+       a.id, a.cliente_id, a.servicio_id, a.periodo, a.vencimiento, a.monto, a.moneda, a.notas, a.created_at, a.updated_at,
        cl.nombre AS cliente_nombre,
        s.tipo AS servicio_tipo,
        s.nombre_personalizado AS servicio_nombre_personalizado,

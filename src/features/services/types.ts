@@ -13,6 +13,10 @@ export type TipoServicio =
 export type FrecuenciaServicio = "UNICO" | "MENSUAL" | "ANUAL";
 export type EstadoServicio = "ACTIVO" | "PAUSADO" | "FINALIZADO";
 
+// Estado de renovación calculado (no se guarda en la DB), separado del
+// ciclo de vida (EstadoServicio) — ver calcularEstadoRenovacion en services.ts.
+export type EstadoRenovacionServicio = "AL_DIA" | "VENCIDO";
+
 export interface Servicio {
   id: string;
   clienteId: string;
