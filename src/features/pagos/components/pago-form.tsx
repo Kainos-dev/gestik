@@ -33,6 +33,10 @@ interface ServicioOption {
     moneda: Moneda;
 }
 
+function nombreServicioOption(s: ServicioOption) {
+    return s.tipo === 'OTRO' ? s.nombre_personalizado : TIPO_SERVICIO_LABELS[s.tipo];
+}
+
 interface PagoFormProps {
     clientes: Cliente[];
     pago?: Pago;
@@ -121,7 +125,11 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                         render={({ field }) => (
                             <Select value={field.value} onValueChange={field.onChange} disabled={esEdicion}>
                                 <SelectTrigger id="clienteId">
-                                    <SelectValue placeholder="Seleccionar cliente" />
+                                    <SelectValue placeholder="Seleccionar cliente">
+                                        {(value: string) =>
+                                            clientes.find((c) => c.id === value)?.nombre ?? 'Seleccionar cliente'
+                                        }
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {clientes.map((c) => (
@@ -146,12 +154,17 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                         render={({ field }) => (
                             <Select value={field.value} onValueChange={field.onChange} disabled={!clienteSeleccionado}>
                                 <SelectTrigger id="servicioId">
-                                    <SelectValue placeholder="Sin asociar a un servicio puntual" />
+                                    <SelectValue placeholder="Sin asociar a un servicio puntual">
+                                        {(value: string) => {
+                                            const servicio = servicios.find((s) => s.id === value);
+                                            return servicio ? nombreServicioOption(servicio) : 'Sin asociar a un servicio puntual';
+                                        }}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {servicios.map((s) => (
                                         <SelectItem key={s.id} value={s.id}>
-                                            {s.tipo === 'OTRO' ? s.nombre_personalizado : TIPO_SERVICIO_LABELS[s.tipo]}
+                                            {nombreServicioOption(s)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

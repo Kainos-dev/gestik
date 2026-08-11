@@ -11,9 +11,8 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { GastoForm } from './gasto-form';
-import { GastoFijo } from '../types';
 
-export function NuevoGastoDialog({ gastosFijos }: { gastosFijos: GastoFijo[] }) {
+export function NuevoGastoDialog() {
     const [open, setOpen] = useState(false);
 
     return (
@@ -23,7 +22,7 @@ export function NuevoGastoDialog({ gastosFijos }: { gastosFijos: GastoFijo[] }) 
                 <DialogHeader>
                     <DialogTitle>Registrar gasto</DialogTitle>
                 </DialogHeader>
-                <GastoForm gastosFijos={gastosFijos} onSuccess={() => setOpen(false)} />
+                <GastoForm onSuccess={() => setOpen(false)} />
             </DialogContent>
         </Dialog>
     );

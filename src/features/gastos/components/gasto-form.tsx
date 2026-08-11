@@ -3,13 +3,13 @@
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useTransition, useEffect } from 'react';
+import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 import { GastoSchema, GastoInput, CATEGORIAS_GASTO } from '../schema';
 import { crearGasto, editarGasto } from '../actions';
-import { Gasto, GastoFijo } from '../types';
+import { Gasto } from '../types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,12 +26,11 @@ import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
 import { MONEDAS } from '@/lib/moneda';
 
 interface GastoFormProps {
-    gastosFijos: GastoFijo[]; // para asociar (opcional) el gasto a un gasto fijo existente
     gasto?: Gasto; // si viene, es edición
     onSuccess?: () => void;
 }
 
-export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
+export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const esEdicion = Boolean(gasto);
@@ -40,13 +39,10 @@ export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
         register,
         handleSubmit,
         control,
-        watch,
-        setValue,
         formState: { errors },
     } = useForm<GastoInput>({
         resolver: zodResolver(GastoSchema),
         defaultValues: {
-            gastoFijoId: gasto?.gastoFijoId ?? '',
             categoria: gasto?.categoria ?? 'OTRO',
             descripcion: gasto?.descripcion ?? '',
             monto: gasto?.monto ?? 0,
@@ -55,20 +51,6 @@ export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
             notas: gasto?.notas ?? '',
         },
     });
-
-    const gastoFijoSeleccionado = watch('gastoFijoId');
-    const gastoFijoElegido = gastosFijos.find((g) => g.id === gastoFijoSeleccionado);
-
-    // Al elegir un gasto fijo, precarga categoría/descripción/monto/moneda
-    // (categoría, descripción y monto se pueden ajustar después; la moneda
-    // no, porque el gasto tiene que quedar en la misma moneda que el fijo)
-    useEffect(() => {
-        if (!gastoFijoElegido) return;
-        setValue('categoria', gastoFijoElegido.categoria);
-        setValue('descripcion', gastoFijoElegido.nombre);
-        setValue('monto', gastoFijoElegido.monto);
-        setValue('moneda', gastoFijoElegido.moneda);
-    }, [gastoFijoElegido, setValue]);
 
     function onSubmit(data: GastoInput) {
         startTransition(async () => {
@@ -91,28 +73,6 @@ export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-                <Label htmlFor="gastoFijoId">Gasto fijo (opcional)</Label>
-                <Controller
-                    name="gastoFijoId"
-                    control={control}
-                    render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger id="gastoFijoId">
-                                <SelectValue placeholder="Gasto puntual, sin asociar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {gastosFijos.map((g) => (
-                                    <SelectItem key={g.id} value={g.id}>
-                                        {g.nombre}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
-                />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="categoria">Categoría *</Label>
@@ -144,11 +104,7 @@ export function GastoForm({ gastosFijos, gasto, onSuccess }: GastoFormProps) {
                             name="moneda"
                             control={control}
                             render={({ field }) => (
-                                <Select
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                    disabled={Boolean(gastoFijoElegido)}
-                                >
+                                <Select value={field.value} onValueChange={field.onChange}>
                                     <SelectTrigger id="moneda" className="w-24">
                                         <SelectValue />
                                     </SelectTrigger>

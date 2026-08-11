@@ -5,10 +5,16 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Cliente } from '../types';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { formatDate } from '@/lib/utils';
 
 const columns: ColumnDef<Cliente>[] = [
     { accessorKey: 'nombre', header: 'Nombre' },
     { accessorKey: 'empresa', header: 'Empresa' },
+    {
+        accessorKey: 'whatsapp',
+        header: 'Celular',
+        cell: ({ row }) => row.original.whatsapp ?? '—',
+    },
     {
         accessorKey: 'estado',
         header: 'Estado',
@@ -17,7 +23,7 @@ const columns: ColumnDef<Cliente>[] = [
     {
         accessorKey: 'fechaAlta',
         header: 'Alta',
-        cell: ({ row }) => new Date(row.original.fechaAlta).toLocaleDateString('es-AR'),
+        cell: ({ row }) => formatDate(row.original.fechaAlta),
     },
 ];
 

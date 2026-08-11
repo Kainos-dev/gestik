@@ -109,7 +109,11 @@ export function ServicioForm({
                 disabled={esEdicion}
               >
                 <SelectTrigger id="clienteId">
-                  <SelectValue placeholder="Seleccionar cliente" />
+                  <SelectValue placeholder="Seleccionar cliente">
+                    {(value: string) =>
+                      clientes.find((c) => c.id === value)?.nombre ?? "Seleccionar cliente"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {clientes.map((c) => (

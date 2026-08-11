@@ -36,6 +36,7 @@ export async function crearPago(data: PagoInput) {
 
     revalidatePath('/pagos');
     revalidatePath('/gestion');
+    revalidatePath('/dashboard');
     revalidatePath(`/clientes/${parsed.clienteId}`);
 }
 
@@ -62,5 +63,20 @@ export async function editarPago(id: string, data: PagoInput) {
 
     revalidatePath('/pagos');
     revalidatePath('/gestion');
+    revalidatePath('/dashboard');
     revalidatePath(`/clientes/${parsed.clienteId}`);
+}
+
+// Borrar un pago no requiere tocar cargos aparte: el estado y "cubierto" de
+// cada cargo se recalculan en vivo en cada request (waterfall sobre los
+// pagos existentes, ver getCargos en cargos/queries.ts), así que sacar la
+// fila alcanza para que todo — cargos, saldos, KPIs — vuelva a como estaba.
+export async function eliminarPago(id: string) {
+    const { rows } = await pool.query(`DELETE FROM pagos WHERE id = $1 RETURNING cliente_id`, [id]);
+    const clienteId = rows[0]?.cliente_id;
+
+    revalidatePath('/pagos');
+    revalidatePath('/gestion');
+    revalidatePath('/dashboard');
+    if (clienteId) revalidatePath(`/clientes/${clienteId}`);
 }

@@ -76,28 +76,35 @@ export async function editarServicio(id: string, data: ServicioInput) {
 }
 
 
-export async function renovarServicio(servicioId: string) {
+export async function renovarServicio(servicioId: string, nuevoPrecio?: number) {
   const { rows } = await pool.query(`SELECT * FROM servicios WHERE id = $1`, [servicioId]);
   const servicio = rows[0];
   if (!servicio || servicio.frecuencia === 'UNICO') return;
   if (servicio.estado !== 'ACTIVO') return;
+  if (nuevoPrecio !== undefined && !(nuevoPrecio > 0)) {
+    throw new Error('El precio debe ser mayor a 0');
+  }
 
   const fechaBase = servicio.proximo_vencimiento ?? servicio.fecha_inicio;
   const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia);
+  const precio = nuevoPrecio ?? Number(servicio.precio);
 
   // 1. Genera el cargo correspondiente a este período (vence al arrancar el
-  //    próximo, nunca es UNICO en este flujo — ver early return arriba)
+  //    próximo, nunca es UNICO en este flujo — ver early return arriba), con
+  //    el precio vigente al renovar (si se editó, se copia acá para siempre,
+  //    igual que ya pasa con cualquier cargo)
   await pool.query(
     `INSERT INTO cargos (cliente_id, servicio_id, periodo, vencimiento, monto, moneda)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [servicio.cliente_id, servicio.id, fechaBase, nuevoVencimiento, servicio.precio, servicio.moneda]
+    [servicio.cliente_id, servicio.id, fechaBase, nuevoVencimiento, precio, servicio.moneda]
   );
 
-  // 2. Avanza el vencimiento del servicio al siguiente ciclo
-  await pool.query(`UPDATE servicios SET proximo_vencimiento = $1, updated_at = now() WHERE id = $2`, [
-    nuevoVencimiento,
-    servicioId,
-  ]);
+  // 2. Avanza el vencimiento del servicio al siguiente ciclo, y si el precio
+  //    cambió lo actualiza para que los próximos ciclos también lo usen
+  await pool.query(
+    `UPDATE servicios SET proximo_vencimiento = $1, precio = $2, updated_at = now() WHERE id = $3`,
+    [nuevoVencimiento, precio, servicioId],
+  );
 
   revalidatePath('/servicios');
   revalidatePath('/pagos');

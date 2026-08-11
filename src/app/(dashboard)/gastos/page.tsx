@@ -21,7 +21,7 @@ export default async function GastosPage() {
 
                 <TabsContent value="registro" className="space-y-4 pt-4">
                     <div className="flex justify-end">
-                        <NuevoGastoDialog gastosFijos={gastosFijos} />
+                        <NuevoGastoDialog />
                     </div>
                     <GastosTable gastos={gastos} />
                 </TabsContent>
