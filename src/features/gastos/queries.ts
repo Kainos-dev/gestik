@@ -62,11 +62,16 @@ export interface TotalPorMoneda {
     total: number;
 }
 
+// Solo gastos fijos (Adobe, hosting, etc.) — usado para el Balance de
+// Gestión. Los gastos sueltos (una cámara, una notebook) no se descuentan
+// ahí, aunque sí se ven en el listado de /gastos y en "Gastos últimos 6
+// meses" (getGastosPorMes), que muestra el panorama completo de gasto.
 export async function getTotalGastosMes(): Promise<TotalPorMoneda[]> {
     const { rows } = await pool.query(
         `SELECT moneda, COALESCE(SUM(monto), 0) AS total
      FROM gastos
      WHERE date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)
+       AND gasto_fijo_id IS NOT NULL
      GROUP BY moneda`
     );
     const mapa = new Map(rows.map((r) => [r.moneda, Number(r.total)]));

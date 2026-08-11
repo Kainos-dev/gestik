@@ -18,7 +18,7 @@ export const CATEGORIAS_GASTO = [
     'OTRO',
 ] as const;
 
-export const FRECUENCIAS_GASTO = ['MENSUAL', 'ANUAL'] as const;
+export const FRECUENCIAS_GASTO = ['MENSUAL', 'MENSUAL_30_DIAS', 'ANUAL'] as const;
 export const ESTADOS_GASTO_FIJO = ['ACTIVO', 'PAUSADO', 'FINALIZADO'] as const;
 
 // Gasto fijo: el compromiso recurrente (Adobe, hosting, etc.)

@@ -10,7 +10,7 @@ import { calcularEstadoPagoGastoFijo } from '../services';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
-import { CATEGORIA_GASTO_LABELS, FRECUENCIA_LABELS } from '@/lib/constants';
+import { CATEGORIA_GASTO_LABELS, FRECUENCIA_GASTO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import { formatCurrency } from '@/lib/moneda';
 
@@ -62,7 +62,7 @@ const columns: ColumnDef<GastoFijo>[] = [
     {
         accessorKey: 'frecuencia',
         header: 'Frecuencia',
-        cell: ({ row }) => FRECUENCIA_LABELS[row.original.frecuencia],
+        cell: ({ row }) => FRECUENCIA_GASTO_LABELS[row.original.frecuencia],
     },
     {
         accessorKey: 'proximoVencimiento',

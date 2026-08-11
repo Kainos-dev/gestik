@@ -36,6 +36,8 @@ export default async function GestionPage() {
     ]);
 
     // Balance por moneda: no tiene sentido restar gastos en USD de ingresos en ARS.
+    // "gastos" acá son solo gastos fijos (ver getTotalGastosMes) — los gastos
+    // sueltos (una cámara, una notebook) no se descuentan del balance.
     const balancePorMoneda = MONEDAS.map((moneda) => {
         const ingresos = totalIngresosMes.find((i) => i.moneda === moneda)?.total ?? 0;
         const gastos = totalGastosMes.find((g) => g.moneda === moneda)?.total ?? 0;
@@ -49,7 +51,7 @@ export default async function GestionPage() {
             {balancePorMoneda.map((b) => (
                 <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <KpiCard label={`Ingresos del mes (${b.moneda})`} value={formatCurrency(b.ingresos, b.moneda)} />
-                    <KpiCard label={`Gastos del mes (${b.moneda})`} value={formatCurrency(b.gastos, b.moneda)} />
+                    <KpiCard label={`Gastos fijos del mes (${b.moneda})`} value={formatCurrency(b.gastos, b.moneda)} />
                     <KpiCard label={`Balance del mes (${b.moneda})`} value={formatCurrency(b.balance, b.moneda)} />
                 </div>
             ))}

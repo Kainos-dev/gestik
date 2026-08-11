@@ -10,7 +10,7 @@ export type CategoriaGasto =
     | 'OFICINA'
     | 'OTRO';
 
-export type FrecuenciaGasto = 'MENSUAL' | 'ANUAL';
+export type FrecuenciaGasto = 'MENSUAL' | 'MENSUAL_30_DIAS' | 'ANUAL';
 export type EstadoGastoFijo = 'ACTIVO' | 'PAUSADO' | 'FINALIZADO';
 
 // Estado de pago calculado (no se guarda en la DB), separado del ciclo de

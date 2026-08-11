@@ -28,7 +28,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { CATEGORIA_GASTO_LABELS, FRECUENCIA_LABELS, ESTADO_STYLES } from '@/lib/constants';
+import { CATEGORIA_GASTO_LABELS, FRECUENCIA_GASTO_LABELS, ESTADO_STYLES } from '@/lib/constants';
 import { MONEDAS } from '@/lib/moneda';
 
 interface GastoFijoFormProps {
@@ -123,7 +123,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                                 <SelectContent>
                                     {FRECUENCIAS_GASTO.map((frecuencia) => (
                                         <SelectItem key={frecuencia} value={frecuencia}>
-                                            {FRECUENCIA_LABELS[frecuencia]}
+                                            {FRECUENCIA_GASTO_LABELS[frecuencia]}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

@@ -58,6 +58,15 @@ export const FRECUENCIA_LABELS: Record<string, string> = {
   ANUAL: "Anual",
 };
 
+// Gastos fijos tienen una tercera frecuencia (MENSUAL_30_DIAS) que servicios
+// no tiene, así que necesitan etiquetas propias que dejen clara la diferencia
+// entre las dos variantes mensuales.
+export const FRECUENCIA_GASTO_LABELS: Record<string, string> = {
+  MENSUAL: "Mensual (mismo día)",
+  MENSUAL_30_DIAS: "Mensual (30 días)",
+  ANUAL: "Anual",
+};
+
 export const METODO_PAGO_LABELS: Record<string, string> = {
   TRANSFERENCIA: 'Transferencia',
   EFECTIVO: 'Efectivo',
