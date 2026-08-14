@@ -167,7 +167,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                         name="fechaInicio"
                         control={control}
                         render={({ field }) => (
-                            <DatePicker id="fechaInicio" value={field.value} onChange={field.onChange} />
+                            <DatePicker id="fechaInicio" value={field.value as Date | undefined} onChange={field.onChange} />
                         )}
                     />
                     {errors.fechaInicio && <p className="text-sm text-red-600">{errors.fechaInicio.message}</p>}

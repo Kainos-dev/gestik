@@ -135,7 +135,7 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
                 <Controller
                     name="fecha"
                     control={control}
-                    render={({ field }) => <DatePicker id="fecha" value={field.value} onChange={field.onChange} />}
+                    render={({ field }) => <DatePicker id="fecha" value={field.value as Date | undefined} onChange={field.onChange} />}
                 />
                 {errors.fecha && <p className="text-sm text-red-600">{errors.fecha.message}</p>}
             </div>
