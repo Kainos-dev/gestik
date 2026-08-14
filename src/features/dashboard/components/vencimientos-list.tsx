@@ -2,6 +2,7 @@
 import { ProximoVencimiento } from '../queries';
 import { formatDate } from '@/lib/utils';
 import { TIPO_SERVICIO_LABELS } from '@/lib/constants';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 
 export function VencimientosList({ vencimientos }: { vencimientos: ProximoVencimiento[] }) {
     if (vencimientos.length === 0) {
@@ -19,7 +20,10 @@ export function VencimientosList({ vencimientos }: { vencimientos: ProximoVencim
                 return (
                     <li key={v.id} className="flex items-center justify-between text-sm">
                         <div>
-                            <p className="font-medium">{v.clienteNombre}</p>
+                            <p className="font-medium flex items-center gap-2">
+                                <ClienteColorDot color={v.clienteColor} nombre={v.clienteNombre} />
+                                {v.clienteNombre}
+                            </p>
                             <p className="text-muted-foreground">
                                 {v.tipo === 'OTRO' ? v.nombrePersonalizado : TIPO_SERVICIO_LABELS[v.tipo]} ·{' '}
                                 {formatDate(v.proximoVencimiento)}

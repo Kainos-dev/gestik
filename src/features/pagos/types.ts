@@ -7,6 +7,7 @@ export interface Pago {
     id: string;
     clienteId: string;
     clienteNombre?: string;
+    clienteColor?: string;
     servicioId: string | null;
     servicioNombre?: string;
     fecha: Date;
@@ -24,6 +25,7 @@ export function mapPago(row: any): Pago {
         id: row.id,
         clienteId: row.cliente_id,
         clienteNombre: row.cliente_nombre ?? undefined,
+        clienteColor: row.cliente_color ?? undefined,
         servicioId: row.servicio_id,
         servicioNombre: row.servicio_nombre ?? undefined,
         fecha: row.fecha,

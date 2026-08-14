@@ -8,6 +8,7 @@ import { Trash2 } from 'lucide-react';
 import { Pago } from '../types';
 import { eliminarPago } from '../actions';
 import { DataTable } from '@/components/shared/data-table';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { Button } from '@/components/ui/button';
 import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
@@ -50,7 +51,16 @@ const columns: ColumnDef<Pago>[] = [
         header: 'Fecha',
         cell: ({ row }) => formatDate(row.original.fecha),
     },
-    { accessorKey: 'clienteNombre', header: 'Cliente' },
+    {
+        accessorKey: 'clienteNombre',
+        header: 'Cliente',
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2">
+                <ClienteColorDot color={row.original.clienteColor} nombre={row.original.clienteNombre} />
+                {row.original.clienteNombre}
+            </div>
+        ),
+    },
     {
         accessorKey: 'monto',
         header: 'Monto',

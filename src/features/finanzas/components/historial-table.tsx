@@ -4,6 +4,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Pago } from '@/features/pagos/types';
 import { DataTable } from '@/components/shared/data-table';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { METODO_PAGO_LABELS } from '@/lib/constants';
@@ -34,7 +35,16 @@ function exportarCsv(pagos: Pago[]) {
 
 const columns: ColumnDef<Pago>[] = [
     { accessorKey: 'fecha', header: 'Fecha', cell: ({ row }) => formatDate(row.original.fecha) },
-    { accessorKey: 'clienteNombre', header: 'Cliente' },
+    {
+        accessorKey: 'clienteNombre',
+        header: 'Cliente',
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2">
+                <ClienteColorDot color={row.original.clienteColor} nombre={row.original.clienteNombre} />
+                {row.original.clienteNombre}
+            </div>
+        ),
+    },
     { accessorKey: 'monto', header: 'Monto', cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda) },
     {
         accessorKey: 'metodoPago',

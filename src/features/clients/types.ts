@@ -10,6 +10,7 @@ export interface Cliente {
     estado: EstadoCliente;
     fechaAlta: Date;
     observaciones: string | null;
+    color: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -25,6 +26,7 @@ export function mapCliente(row: any): Cliente {
         estado: row.estado,
         fechaAlta: row.fecha_alta,
         observaciones: row.observaciones,
+        color: row.color,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };

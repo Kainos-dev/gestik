@@ -21,6 +21,7 @@ export interface Servicio {
   id: string;
   clienteId: string;
   clienteNombre?: string; // sólo viene poblado cuando la query hace JOIN (listado global)
+  clienteColor?: string;
   tipo: TipoServicio;
   nombrePersonalizado: string | null;
   precio: number;
@@ -38,6 +39,7 @@ export function mapServicio(row: any): Servicio {
     id: row.id,
     clienteId: row.cliente_id,
     clienteNombre: row.cliente_nombre ?? undefined,
+    clienteColor: row.cliente_color ?? undefined,
     tipo: row.tipo,
     nombrePersonalizado: row.nombre_personalizado,
     precio: Number(row.precio),

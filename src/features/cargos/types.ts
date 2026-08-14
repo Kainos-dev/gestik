@@ -7,6 +7,7 @@ export interface Cargo {
     id: string;
     clienteId: string;
     clienteNombre?: string; // sólo viene poblado cuando la query hace JOIN
+    clienteColor?: string;
     servicioId: string;
     servicioTipo?: string;
     servicioNombrePersonalizado?: string | null;
@@ -25,6 +26,7 @@ export function mapCargo(row: any): Cargo {
         id: row.id,
         clienteId: row.cliente_id,
         clienteNombre: row.cliente_nombre ?? undefined,
+        clienteColor: row.cliente_color ?? undefined,
         servicioId: row.servicio_id,
         servicioTipo: row.servicio_tipo ?? undefined,
         servicioNombrePersonalizado: row.servicio_nombre_personalizado ?? undefined,

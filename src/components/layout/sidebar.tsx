@@ -21,7 +21,7 @@ export function Sidebar() {
     return (
         <aside className="w-60 shrink-0 border-r bg-background flex flex-col">
             <div className="h-16 flex items-center px-5 border-b">
-                <span className="font-semibold text-lg">Kainos Suite</span>
+                <span className="font-semibold text-lg">Kainos Gestik</span>
             </div>
 
             <nav className="flex-1 p-3 space-y-1">

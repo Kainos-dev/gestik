@@ -38,6 +38,7 @@ export async function getIngresosPorMes(): Promise<IngresoMes[]> {
 export interface IngresoCliente {
     clienteId: string;
     clienteNombre: string;
+    clienteColor: string;
     moneda: Moneda;
     total: number;
 }
@@ -48,18 +49,19 @@ export interface IngresoCliente {
 export async function getIngresosPorCliente(): Promise<IngresoCliente[]> {
     const { rows } = await pool.query(
         `WITH totales AS (
-       SELECT c.id AS cliente_id, c.nombre AS cliente_nombre, p.moneda, SUM(p.monto) AS total,
+       SELECT c.id AS cliente_id, c.nombre AS cliente_nombre, c.color AS cliente_color, p.moneda, SUM(p.monto) AS total,
               ROW_NUMBER() OVER (PARTITION BY p.moneda ORDER BY SUM(p.monto) DESC) AS puesto
        FROM pagos p
        JOIN clientes c ON c.id = p.cliente_id
-       GROUP BY c.id, c.nombre, p.moneda
+       GROUP BY c.id, c.nombre, c.color, p.moneda
      )
-     SELECT cliente_id, cliente_nombre, moneda, total FROM totales WHERE puesto <= 10
+     SELECT cliente_id, cliente_nombre, cliente_color, moneda, total FROM totales WHERE puesto <= 10
      ORDER BY moneda, total DESC`
     );
     return rows.map((r) => ({
         clienteId: r.cliente_id,
         clienteNombre: r.cliente_nombre,
+        clienteColor: r.cliente_color,
         moneda: r.moneda,
         total: Number(r.total),
     }));
@@ -68,6 +70,7 @@ export async function getIngresosPorCliente(): Promise<IngresoCliente[]> {
 export interface ClienteConDeuda {
     clienteId: string;
     clienteNombre: string;
+    clienteColor: string;
     moneda: Moneda;
     deuda: number;
     cantidadCargos: number;
@@ -111,6 +114,7 @@ export async function getClientesConDeuda(): Promise<ClienteConDeuda[]> {
         .map((s) => ({
             clienteId: s.clienteId,
             clienteNombre: s.clienteNombre,
+            clienteColor: s.clienteColor,
             moneda: s.moneda,
             deuda: s.saldo,
             cantidadCargos: pendientesPorCliente.get(`${s.clienteId}:${s.moneda}`) ?? 0,

@@ -1,6 +1,7 @@
 // src/features/finanzas/components/clientes-deuda.tsx
 import { ClienteConDeuda } from '../queries';
 import { Badge } from '@/components/ui/badge';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { formatCurrency } from '@/lib/moneda';
 
 export function ClientesDeuda({ clientes }: { clientes: ClienteConDeuda[] }) {
@@ -14,7 +15,10 @@ export function ClientesDeuda({ clientes }: { clientes: ClienteConDeuda[] }) {
                 // clienteId + moneda: un mismo cliente puede tener deuda en ARS y en USD a la vez
                 <li key={`${c.clienteId}:${c.moneda}`} className="flex items-center justify-between text-sm">
                     <div>
-                        <p className="font-medium">{c.clienteNombre}</p>
+                        <p className="font-medium flex items-center gap-2">
+                            <ClienteColorDot color={c.clienteColor} nombre={c.clienteNombre} />
+                            {c.clienteNombre}
+                        </p>
                         <p className="text-muted-foreground">
                             {c.cantidadCargos} cargo{c.cantidadCargos !== 1 ? 's' : ''} pendiente{c.cantidadCargos !== 1 ? 's' : ''}
                         </p>

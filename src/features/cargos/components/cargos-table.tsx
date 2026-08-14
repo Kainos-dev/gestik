@@ -6,6 +6,7 @@ import { Cargo } from '../types';
 import { calcularEstadoCargo } from '../services';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import { formatCurrency } from '@/lib/moneda';
@@ -34,7 +35,16 @@ function totalPendientePorServicio(cargos: Cargo[]): Map<string, number> {
 
 function columnas(clientes: Cliente[], pendientesPorServicio: Map<string, number>): ColumnDef<Cargo>[] {
     return [
-        { accessorKey: 'clienteNombre', header: 'Cliente' },
+        {
+            accessorKey: 'clienteNombre',
+            header: 'Cliente',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                    <ClienteColorDot color={row.original.clienteColor} nombre={row.original.clienteNombre} />
+                    {row.original.clienteNombre}
+                </div>
+            ),
+        },
         { id: 'servicio', header: 'Servicio', cell: ({ row }) => nombreServicio(row.original) },
         {
             accessorKey: 'periodo',

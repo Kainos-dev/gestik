@@ -1,6 +1,7 @@
 // src/features/finanzas/components/ranking-clientes.tsx
 import { IngresoCliente } from '../queries';
 import { MONEDAS, formatCurrency } from '@/lib/moneda';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 
 // El ranking se agrupa por moneda: un top-10 mezclando ARS y USD no se puede
 // ordenar ni graficar con una sola barra de forma que tenga sentido (100 USD
@@ -28,15 +29,18 @@ export function RankingClientes({ ingresos }: { ingresos: IngresoCliente[] }) {
                             {grupo.items.map((c) => (
                                 <li key={c.clienteId} className="space-y-1">
                                     <div className="flex justify-between text-sm">
-                                        <span className="font-medium">{c.clienteNombre}</span>
+                                        <span className="font-medium flex items-center gap-2">
+                                            <ClienteColorDot color={c.clienteColor} nombre={c.clienteNombre} />
+                                            {c.clienteNombre}
+                                        </span>
                                         <span className="text-muted-foreground">
                                             {formatCurrency(c.total, c.moneda)}
                                         </span>
                                     </div>
                                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                                         <div
-                                            className="h-full bg-primary rounded-full"
-                                            style={{ width: `${(c.total / max) * 100}%` }}
+                                            className="h-full rounded-full"
+                                            style={{ width: `${(c.total / max) * 100}%`, backgroundColor: c.clienteColor }}
                                         />
                                     </div>
                                 </li>

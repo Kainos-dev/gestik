@@ -35,6 +35,7 @@ import {
   FRECUENCIA_LABELS,
   ESTADO_STYLES,
 } from "@/lib/constants";
+import { ClienteColorDot } from "@/components/shared/cliente-color-dot";
 
 interface ServicioFormProps {
   clientes: Cliente[]; // para poblar el selector
@@ -110,15 +111,26 @@ export function ServicioForm({
               >
                 <SelectTrigger id="clienteId">
                   <SelectValue placeholder="Seleccionar cliente">
-                    {(value: string) =>
-                      clientes.find((c) => c.id === value)?.nombre ?? "Seleccionar cliente"
-                    }
+                    {(value: string) => {
+                      const c = clientes.find((c) => c.id === value);
+                      return c ? (
+                        <span className="flex items-center gap-2">
+                          <ClienteColorDot color={c.color} nombre={c.nombre} />
+                          {c.nombre}
+                        </span>
+                      ) : (
+                        "Seleccionar cliente"
+                      );
+                    }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {clientes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.nombre}
+                      <span className="flex items-center gap-2">
+                        <ClienteColorDot color={c.color} nombre={c.nombre} />
+                        {c.nombre}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

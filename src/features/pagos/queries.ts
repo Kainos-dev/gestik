@@ -4,7 +4,7 @@ import { Pago, mapPago } from './types';
 
 export async function getPagos(): Promise<Pago[]> {
     const { rows } = await pool.query(
-        `SELECT p.*, c.nombre AS cliente_nombre, s.tipo AS servicio_nombre
+        `SELECT p.*, c.nombre AS cliente_nombre, c.color AS cliente_color, s.tipo AS servicio_nombre
      FROM pagos p
      JOIN clientes c ON c.id = p.cliente_id
      LEFT JOIN servicios s ON s.id = p.servicio_id

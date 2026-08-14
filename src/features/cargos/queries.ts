@@ -31,6 +31,7 @@ export async function getCargos(): Promise<Cargo[]> {
      SELECT
        a.id, a.cliente_id, a.servicio_id, a.periodo, a.vencimiento, a.monto, a.moneda, a.notas, a.created_at, a.updated_at,
        cl.nombre AS cliente_nombre,
+       cl.color AS cliente_color,
        s.tipo AS servicio_tipo,
        s.nombre_personalizado AS servicio_nombre_personalizado,
        LEAST(a.monto, GREATEST(0, a.total_pagado_servicio - (a.acumulado_hasta_este - a.monto))) AS monto_cubierto
@@ -45,6 +46,7 @@ export async function getCargos(): Promise<Cargo[]> {
 export interface SaldoCliente {
     clienteId: string;
     clienteNombre: string;
+    clienteColor: string;
     moneda: Moneda;
     saldo: number;
     cantidadCargos: number;
@@ -70,6 +72,7 @@ export async function getSaldoPorCliente(): Promise<SaldoCliente[]> {
      SELECT
        c.id AS cliente_id,
        c.nombre AS cliente_nombre,
+       c.color AS cliente_color,
        cc.moneda,
        GREATEST(0, cc.total_cargos - COALESCE(pc.total_pagado, 0)) AS saldo,
        cc.cantidad_cargos
@@ -80,6 +83,7 @@ export async function getSaldoPorCliente(): Promise<SaldoCliente[]> {
     return rows.map((r) => ({
         clienteId: r.cliente_id,
         clienteNombre: r.cliente_nombre,
+        clienteColor: r.cliente_color,
         moneda: r.moneda,
         saldo: Number(r.saldo),
         cantidadCargos: Number(r.cantidad_cargos),

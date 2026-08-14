@@ -57,6 +57,7 @@ export async function getKpis(): Promise<DashboardKpis> {
 export interface ProximoVencimiento {
     id: string;
     clienteNombre: string;
+    clienteColor: string;
     tipo: string;
     nombrePersonalizado: string | null;
     proximoVencimiento: Date;
@@ -66,7 +67,7 @@ export interface ProximoVencimiento {
 
 export async function getProximosVencimientos(): Promise<ProximoVencimiento[]> {
     const { rows } = await pool.query(
-        `SELECT s.id, c.nombre AS cliente_nombre, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda
+        `SELECT s.id, c.nombre AS cliente_nombre, c.color AS cliente_color, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda
      FROM servicios s
      JOIN clientes c ON c.id = s.cliente_id
      WHERE s.estado = 'ACTIVO'
@@ -78,6 +79,7 @@ export async function getProximosVencimientos(): Promise<ProximoVencimiento[]> {
     return rows.map((r) => ({
         id: r.id,
         clienteNombre: r.cliente_nombre,
+        clienteColor: r.cliente_color,
         tipo: r.tipo,
         nombrePersonalizado: r.nombre_personalizado,
         proximoVencimiento: r.proximo_vencimiento,
@@ -88,7 +90,7 @@ export async function getProximosVencimientos(): Promise<ProximoVencimiento[]> {
 
 export async function getUltimosMovimientos(): Promise<Pago[]> {
     const { rows } = await pool.query(
-        `SELECT p.*, c.nombre AS cliente_nombre, s.tipo AS servicio_nombre
+        `SELECT p.*, c.nombre AS cliente_nombre, c.color AS cliente_color, s.tipo AS servicio_nombre
      FROM pagos p
      JOIN clientes c ON c.id = p.cliente_id
      LEFT JOIN servicios s ON s.id = p.servicio_id

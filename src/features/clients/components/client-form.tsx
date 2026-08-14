@@ -24,11 +24,15 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { ESTADO_STYLES } from '@/lib/constants';
+import { CLIENT_COLOR_PALETTE } from '@/lib/client-colors';
+import { cn } from '@/lib/utils';
 
 // Tipo específico de este formulario: los campos base de ClienteSchema
-// + estado, que sólo se edita acá (nunca en el alta) y no vive en CrearClienteSchema.
+// + estado y color, que sólo se editan acá (nunca en el alta: el estado
+// nace ACTIVO y el color se asigna automático — ver pickClientColor).
 const ClienteFormSchema = ClienteSchema.extend({
     estado: z.enum(ESTADOS_CLIENTE).optional(),
+    color: z.string().optional(),
 });
 
 type ClienteFormInput = z.input<typeof ClienteFormSchema>;
@@ -58,6 +62,7 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
             whatsapp: cliente?.whatsapp ?? '',
             observaciones: cliente?.observaciones ?? '',
             estado: cliente?.estado,
+            color: cliente?.color,
         },
     });
 
@@ -133,6 +138,33 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
                         )}
                     />
                     {errors.estado && <p className="text-sm text-red-600">{errors.estado.message}</p>}
+                </div>
+            )}
+
+            {esEdicion && (
+                <div className="space-y-1.5">
+                    <Label>Color identificador</Label>
+                    <Controller
+                        name="color"
+                        control={control}
+                        render={({ field }) => (
+                            <div className="flex flex-wrap gap-2">
+                                {CLIENT_COLOR_PALETTE.map((color) => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        aria-label={`Elegir color ${color}`}
+                                        onClick={() => field.onChange(color)}
+                                        className={cn(
+                                            'h-6 w-6 rounded-full ring-offset-2 ring-offset-background transition-shadow',
+                                            field.value === color ? 'ring-2 ring-foreground' : 'hover:ring-2 hover:ring-muted-foreground/50'
+                                        )}
+                                        style={{ backgroundColor: color }}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    />
                 </div>
             )}
 

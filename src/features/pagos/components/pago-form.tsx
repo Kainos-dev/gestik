@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { MONEDAS, Moneda } from '@/lib/moneda';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 
 interface ServicioOption {
     id: string;
@@ -126,15 +127,26 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                             <Select value={field.value} onValueChange={field.onChange} disabled={esEdicion}>
                                 <SelectTrigger id="clienteId">
                                     <SelectValue placeholder="Seleccionar cliente">
-                                        {(value: string) =>
-                                            clientes.find((c) => c.id === value)?.nombre ?? 'Seleccionar cliente'
-                                        }
+                                        {(value: string) => {
+                                            const c = clientes.find((c) => c.id === value);
+                                            return c ? (
+                                                <span className="flex items-center gap-2">
+                                                    <ClienteColorDot color={c.color} nombre={c.nombre} />
+                                                    {c.nombre}
+                                                </span>
+                                            ) : (
+                                                'Seleccionar cliente'
+                                            );
+                                        }}
                                     </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {clientes.map((c) => (
                                         <SelectItem key={c.id} value={c.id}>
-                                            {c.nombre}
+                                            <span className="flex items-center gap-2">
+                                                <ClienteColorDot color={c.color} nombre={c.nombre} />
+                                                {c.nombre}
+                                            </span>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

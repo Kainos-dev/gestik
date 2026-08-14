@@ -7,12 +7,22 @@ import { calcularEstadoRenovacion } from '../services';
 import { RenovarServicioDialog } from './renovar-servicio-dialog';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { TIPO_SERVICIO_LABELS, FRECUENCIA_LABELS } from '@/lib/constants';
 import { formatDate, formatDateLocal } from '@/lib/utils';
 import { formatCurrency } from '@/lib/moneda';
 
 const columns: ColumnDef<Servicio>[] = [
-  { accessorKey: 'clienteNombre', header: 'Cliente' },
+  {
+    accessorKey: 'clienteNombre',
+    header: 'Cliente',
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <ClienteColorDot color={row.original.clienteColor} nombre={row.original.clienteNombre} />
+        {row.original.clienteNombre}
+      </div>
+    ),
+  },
   {
     accessorKey: 'tipo',
     header: 'Servicio',

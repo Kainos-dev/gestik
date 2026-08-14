@@ -5,7 +5,7 @@ import { Servicio, mapServicio } from "./types";
 // Listado global (para /servicios) con el nombre del cliente vía JOIN
 export async function getServicios(): Promise<Servicio[]> {
   const { rows } = await pool.query(
-    `SELECT s.*, c.nombre AS cliente_nombre
+    `SELECT s.*, c.nombre AS cliente_nombre, c.color AS cliente_color
      FROM servicios s
      JOIN clientes c ON c.id = s.cliente_id
      ORDER BY s.proximo_vencimiento ASC NULLS LAST`,
@@ -26,7 +26,7 @@ export async function getServiciosByCliente(
 
 export async function getServicioById(id: string): Promise<Servicio | null> {
   const { rows } = await pool.query(
-    `SELECT s.*, c.nombre AS cliente_nombre
+    `SELECT s.*, c.nombre AS cliente_nombre, c.color AS cliente_color
      FROM servicios s
      JOIN clientes c ON c.id = s.cliente_id
      WHERE s.id = $1`,

@@ -26,9 +26,12 @@ export const ClienteSchema = z.object({
 export const CrearClienteSchema = ClienteSchema;
 
 // Para edición: mismos campos, pero todos opcionales (permite update parcial)
-// + el estado, que en alta no se pide (siempre nace ACTIVO)
+// + el estado, que en alta no se pide (siempre nace ACTIVO), y el color,
+// que en alta se asigna automático (ver pickClientColor) pero puede
+// corregirse a mano después.
 export const EditarClienteSchema = ClienteSchema.partial().extend({
     estado: z.enum(ESTADOS_CLIENTE).optional(),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color inválido').optional(),
 });
 
 // Tipos TS inferidos directamente del schema — no hay que mantenerlos a mano
