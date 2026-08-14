@@ -14,7 +14,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
 }
 
-// Todo pasa por acá salvo /login, los assets estáticos y el favicon.
+// Todo pasa por acá salvo /login, los assets estáticos, el favicon, y el
+// cron (/api/cron/*, que se autentica con CRON_SECRET en vez de la cookie
+// de sesión — Vercel lo llama server-to-server, sin PIN de por medio).
 export const config = {
-    matcher: ['/((?!login|_next/static|_next/image|favicon.ico).*)'],
+    matcher: ['/((?!login|api/cron|_next/static|_next/image|favicon.ico).*)'],
 };

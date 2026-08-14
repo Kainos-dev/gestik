@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { CATEGORIA_GASTO_LABELS, FRECUENCIA_GASTO_LABELS, ESTADO_STYLES } from '@/lib/constants';
 import { MONEDAS } from '@/lib/moneda';
+import { DatePicker } from '@/components/shared/date-picker';
 
 interface GastoFijoFormProps {
     gastoFijo?: GastoFijo; // si viene, es edición
@@ -162,15 +163,12 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
 
                 <div className="space-y-1.5">
                     <Label htmlFor="fechaInicio">Fecha de inicio *</Label>
-                    <Input
-                        id="fechaInicio"
-                        type="date"
-                        {...register('fechaInicio')}
-                        defaultValue={
-                            gastoFijo?.fechaInicio
-                                ? new Date(gastoFijo.fechaInicio).toISOString().split('T')[0]
-                                : new Date().toISOString().split('T')[0]
-                        }
+                    <Controller
+                        name="fechaInicio"
+                        control={control}
+                        render={({ field }) => (
+                            <DatePicker id="fechaInicio" value={field.value} onChange={field.onChange} />
+                        )}
                     />
                     {errors.fechaInicio && <p className="text-sm text-red-600">{errors.fechaInicio.message}</p>}
                 </div>

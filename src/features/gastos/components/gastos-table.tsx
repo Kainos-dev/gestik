@@ -4,6 +4,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Gasto } from '../types';
 import { DataTable } from '@/components/shared/data-table';
+import { EditarGastoDialog } from './edit-gasto-dialog';
 import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import { formatCurrency } from '@/lib/moneda';
@@ -25,6 +26,11 @@ const columns: ColumnDef<Gasto>[] = [
         accessorKey: 'gastoFijoNombre',
         header: 'Gasto fijo',
         cell: ({ row }) => row.original.gastoFijoNombre ?? '—',
+    },
+    {
+        id: 'acciones',
+        header: '',
+        cell: ({ row }) => <EditarGastoDialog gasto={row.original} />,
     },
 ];
 

@@ -26,6 +26,7 @@ import {
 import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
+import { DatePicker } from '@/components/shared/date-picker';
 
 interface ServicioOption {
     id: string;
@@ -224,13 +225,10 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
 
                 <div className="space-y-1.5">
                     <Label htmlFor="fecha">Fecha *</Label>
-                    <Input
-                        id="fecha"
-                        type="date"
-                        {...register('fecha')}
-                        defaultValue={
-                            pago?.fecha ? new Date(pago.fecha).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-                        }
+                    <Controller
+                        name="fecha"
+                        control={control}
+                        render={({ field }) => <DatePicker id="fecha" value={field.value} onChange={field.onChange} />}
                     />
                     {errors.fecha && <p className="text-sm text-red-600">{errors.fecha.message}</p>}
                 </div>

@@ -16,7 +16,7 @@ export default async function ServiciosPage() {
         <h1 className="text-2xl font-semibold">Servicios</h1>
         <NuevoServicioDialog clientes={clientes} />
       </div>
-      <ServiciosTable servicios={servicios} />
+      <ServiciosTable servicios={servicios} clientes={clientes} />
     </div>
   );
 }

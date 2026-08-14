@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
 import { MONEDAS } from '@/lib/moneda';
+import { DatePicker } from '@/components/shared/date-picker';
 
 interface GastoFormProps {
     gasto?: Gasto; // si viene, es edición
@@ -131,13 +132,10 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
 
             <div className="space-y-1.5">
                 <Label htmlFor="fecha">Fecha *</Label>
-                <Input
-                    id="fecha"
-                    type="date"
-                    {...register('fecha')}
-                    defaultValue={
-                        gasto?.fecha ? new Date(gasto.fecha).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-                    }
+                <Controller
+                    name="fecha"
+                    control={control}
+                    render={({ field }) => <DatePicker id="fecha" value={field.value} onChange={field.onChange} />}
                 />
                 {errors.fecha && <p className="text-sm text-red-600">{errors.fecha.message}</p>}
             </div>

@@ -9,6 +9,7 @@ import { registrarGastoDelMes } from '../actions';
 import { calcularEstadoPagoGastoFijo } from '../services';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { EditarGastoFijoDialog } from './edit-gasto-fijo-dialog';
 import { Button } from '@/components/ui/button';
 import { CATEGORIA_GASTO_LABELS, FRECUENCIA_GASTO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
@@ -86,7 +87,12 @@ const columns: ColumnDef<GastoFijo>[] = [
     {
         id: 'acciones',
         header: '',
-        cell: ({ row }) => <AccionRegistrar gastoFijo={row.original} />,
+        cell: ({ row }) => (
+            <div className="flex items-center justify-end gap-1">
+                <EditarGastoFijoDialog gastoFijo={row.original} />
+                <AccionRegistrar gastoFijo={row.original} />
+            </div>
+        ),
     },
 ];
 

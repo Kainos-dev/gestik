@@ -36,6 +36,7 @@ import {
   ESTADO_STYLES,
 } from "@/lib/constants";
 import { ClienteColorDot } from "@/components/shared/cliente-color-dot";
+import { DatePicker } from "@/components/shared/date-picker";
 
 interface ServicioFormProps {
   clientes: Cliente[]; // para poblar el selector
@@ -241,15 +242,12 @@ export function ServicioForm({
 
         <div className="space-y-1.5">
           <Label htmlFor="fechaInicio">Fecha de inicio *</Label>
-          <Input
-            id="fechaInicio"
-            type="date"
-            {...register("fechaInicio")}
-            defaultValue={
-              servicio?.fechaInicio
-                ? new Date(servicio.fechaInicio).toISOString().split("T")[0]
-                : new Date().toISOString().split("T")[0]
-            }
+          <Controller
+            name="fechaInicio"
+            control={control}
+            render={({ field }) => (
+              <DatePicker id="fechaInicio" value={field.value} onChange={field.onChange} />
+            )}
           />
           {errors.fechaInicio && (
             <p className="text-sm text-red-600">{errors.fechaInicio.message}</p>

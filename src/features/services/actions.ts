@@ -47,10 +47,27 @@ export async function crearServicio(data: ServicioInput) {
 
 export async function editarServicio(id: string, data: ServicioInput) {
   const parsed = ServicioSchema.parse(data);
-  const proximoVencimiento = calcularProximoVencimiento(
-    parsed.fechaInicio,
-    parsed.frecuencia,
+
+  const { rows } = await pool.query(
+    `SELECT frecuencia, fecha_inicio, proximo_vencimiento FROM servicios WHERE id = $1`,
+    [id],
   );
+  const actual = rows[0];
+
+  // Sólo recalculamos el próximo vencimiento si cambió lo que determina el
+  // ciclo (frecuencia o fecha de inicio). Si sólo se edita precio/tipo/moneda/
+  // estado, el próximo vencimiento —que puede haber avanzado por renovaciones
+  // desde que se creó el servicio— queda intacto: de lo contrario cada edición
+  // lo pisaba con "fecha_inicio + 1 ciclo", perdiendo todo el historial de
+  // renovaciones (y confundiendo al cron de renovación automática).
+  const cambioCiclo =
+    !actual ||
+    parsed.frecuencia !== actual.frecuencia ||
+    parsed.fechaInicio.getTime() !== new Date(actual.fecha_inicio).getTime();
+
+  const proximoVencimiento = cambioCiclo
+    ? calcularProximoVencimiento(parsed.fechaInicio, parsed.frecuencia)
+    : actual.proximo_vencimiento;
 
   await pool.query(
     `UPDATE servicios
@@ -76,23 +93,17 @@ export async function editarServicio(id: string, data: ServicioInput) {
 }
 
 
-export async function renovarServicio(servicioId: string, nuevoPrecio?: number) {
-  const { rows } = await pool.query(`SELECT * FROM servicios WHERE id = $1`, [servicioId]);
-  const servicio = rows[0];
-  if (!servicio || servicio.frecuencia === 'UNICO') return;
-  if (servicio.estado !== 'ACTIVO') return;
-  if (nuevoPrecio !== undefined && !(nuevoPrecio > 0)) {
-    throw new Error('El precio debe ser mayor a 0');
-  }
-
+// Genera el cargo del período vigente de "servicio" (fila cruda de la tabla,
+// snake_case) y avanza su proximo_vencimiento. Compartido entre la renovación
+// manual (un ciclo) y la automática (posible catch-up de varios ciclos).
+async function renovarUnCiclo(servicio: any, precio: number): Promise<Date> {
   const fechaBase = servicio.proximo_vencimiento ?? servicio.fecha_inicio;
-  const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia);
-  const precio = nuevoPrecio ?? Number(servicio.precio);
+  const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia)!;
 
   // 1. Genera el cargo correspondiente a este período (vence al arrancar el
-  //    próximo, nunca es UNICO en este flujo — ver early return arriba), con
-  //    el precio vigente al renovar (si se editó, se copia acá para siempre,
-  //    igual que ya pasa con cualquier cargo)
+  //    próximo, nunca es UNICO en este flujo), con el precio vigente al
+  //    renovar (si se editó, se copia acá para siempre, igual que ya pasa
+  //    con cualquier cargo)
   await pool.query(
     `INSERT INTO cargos (cliente_id, servicio_id, periodo, vencimiento, monto, moneda)
      VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -103,10 +114,70 @@ export async function renovarServicio(servicioId: string, nuevoPrecio?: number) 
   //    cambió lo actualiza para que los próximos ciclos también lo usen
   await pool.query(
     `UPDATE servicios SET proximo_vencimiento = $1, precio = $2, updated_at = now() WHERE id = $3`,
-    [nuevoVencimiento, precio, servicioId],
+    [nuevoVencimiento, precio, servicio.id],
   );
+
+  return nuevoVencimiento;
+}
+
+export async function renovarServicio(servicioId: string, nuevoPrecio?: number) {
+  const { rows } = await pool.query(`SELECT * FROM servicios WHERE id = $1`, [servicioId]);
+  const servicio = rows[0];
+  if (!servicio || servicio.frecuencia === 'UNICO') return;
+  if (servicio.estado !== 'ACTIVO') return;
+  if (nuevoPrecio !== undefined && !(nuevoPrecio > 0)) {
+    throw new Error('El precio debe ser mayor a 0');
+  }
+
+  const precio = nuevoPrecio ?? Number(servicio.precio);
+  await renovarUnCiclo(servicio, precio);
 
   revalidatePath('/servicios');
   revalidatePath('/pagos');
   revalidatePath('/gestion');
+}
+
+// Se llama desde el cron diario (/api/cron/renovar-servicios): recorre todo
+// servicio ACTIVO, recurrente, cuyo próximo vencimiento ya llegó, y genera
+// el/los cargo(s) correspondientes. Si el cron estuvo caído más de un ciclo,
+// "hace catch-up" generando un cargo por cada período atrasado en vez de
+// saltear los que se perdieron (tope de 24 ciclos por las dudas, para no
+// colgarse si algo quedó mal configurado).
+const MAX_CICLOS_CATCH_UP = 24;
+
+export async function renovarServiciosVencidos() {
+  const { rows } = await pool.query(
+    `SELECT * FROM servicios
+     WHERE estado = 'ACTIVO' AND frecuencia != 'UNICO' AND proximo_vencimiento <= now()`
+  );
+
+  let cargosCreados = 0;
+  const errores: { servicioId: string; error: string }[] = [];
+  const renovados: string[] = [];
+
+  for (const servicio of rows) {
+    try {
+      const precio = Number(servicio.precio);
+      let vencimiento = new Date(servicio.proximo_vencimiento);
+      let ciclos = 0;
+
+      while (vencimiento.getTime() <= Date.now() && ciclos < MAX_CICLOS_CATCH_UP) {
+        vencimiento = await renovarUnCiclo({ ...servicio, proximo_vencimiento: vencimiento }, precio);
+        cargosCreados++;
+        ciclos++;
+      }
+
+      if (ciclos > 0) renovados.push(servicio.id);
+    } catch (err) {
+      errores.push({ servicioId: servicio.id, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  if (cargosCreados > 0) {
+    revalidatePath('/servicios');
+    revalidatePath('/pagos');
+    revalidatePath('/gestion');
+  }
+
+  return { renovados: renovados.length, cargosCreados, errores };
 }
