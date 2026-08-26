@@ -7,6 +7,7 @@ import {
 } from '@/features/finanzas/queries';
 import { getPagos } from '@/features/pagos/queries';
 import { getGastosPorMes, getTotalGastosMes } from '@/features/gastos/queries';
+import { getTotalReposicionesDeudaMes } from '@/features/deudas/queries';
 import { IngresosChart } from '@/features/finanzas/components/ingresos-chart';
 import { GastosChart } from '@/features/gastos/components/gastos-chart';
 import { RankingClientes } from '@/features/finanzas/components/ranking-clientes';
@@ -25,6 +26,7 @@ export default async function GestionPage() {
         gastosPorMes,
         totalIngresosMes,
         totalGastosMes,
+        totalReposicionesDeudaMes,
     ] = await Promise.all([
         getIngresosPorMes(),
         getIngresosPorCliente(),
@@ -33,15 +35,20 @@ export default async function GestionPage() {
         getGastosPorMes(),
         getTotalIngresosMes(),
         getTotalGastosMes(),
+        getTotalReposicionesDeudaMes(),
     ]);
 
     // Balance por moneda: no tiene sentido restar gastos en USD de ingresos en ARS.
     // "gastos" acá son solo gastos fijos (ver getTotalGastosMes) — los gastos
-    // sueltos (una cámara, una notebook) no se descuentan del balance.
+    // sueltos (una cámara, una notebook) no se descuentan del balance. Las
+    // reposiciones de deuda sí se descuentan (plata que efectivamente salió
+    // este mes para devolverle a un integrante), agrupadas por la moneda en
+    // la que se pagaron (no la moneda de la deuda) — ver getTotalReposicionesDeudaMes.
     const balancePorMoneda = MONEDAS.map((moneda) => {
         const ingresos = totalIngresosMes.find((i) => i.moneda === moneda)?.total ?? 0;
         const gastos = totalGastosMes.find((g) => g.moneda === moneda)?.total ?? 0;
-        return { moneda, ingresos, gastos, balance: ingresos - gastos };
+        const reposicionesDeuda = totalReposicionesDeudaMes.find((r) => r.moneda === moneda)?.total ?? 0;
+        return { moneda, ingresos, gastos, reposicionesDeuda, balance: ingresos - gastos - reposicionesDeuda };
     });
 
     return (
@@ -49,9 +56,13 @@ export default async function GestionPage() {
             <h1 className="text-2xl font-semibold">Gestión</h1>
 
             {balancePorMoneda.map((b) => (
-                <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <KpiCard label={`Ingresos del mes (${b.moneda})`} value={formatCurrency(b.ingresos, b.moneda)} />
                     <KpiCard label={`Gastos fijos del mes (${b.moneda})`} value={formatCurrency(b.gastos, b.moneda)} />
+                    <KpiCard
+                        label={`Reposiciones de deuda del mes (${b.moneda})`}
+                        value={formatCurrency(b.reposicionesDeuda, b.moneda)}
+                    />
                     <KpiCard label={`Balance del mes (${b.moneda})`} value={formatCurrency(b.balance, b.moneda)} />
                 </div>
             ))}

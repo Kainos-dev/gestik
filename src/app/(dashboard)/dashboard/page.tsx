@@ -20,7 +20,7 @@ export default async function DashboardPage() {
             {kpis.porMoneda.map((k) => (
                 <div key={k.moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <KpiCard
-                        label={`Facturado del mes (${k.moneda})`}
+                        label={`Dinero que debería entrar este mes (${k.moneda})`}
                         value={formatCurrency(k.totalFacturadoMes, k.moneda)}
                     />
                     <KpiCard

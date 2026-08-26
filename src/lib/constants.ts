@@ -40,6 +40,16 @@ export const ESTADO_STYLES: Record<
     label: "Al día",
     className: "bg-green-100 text-green-700 border-green-200",
   },
+
+  // Deuda (estado calculado, ver calcularEstadoDeuda)
+  ACTIVA: {
+    label: "Activa",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
+  },
+  SALDADA: {
+    label: "Saldada",
+    className: "bg-green-100 text-green-700 border-green-200",
+  },
 };
 
 export const TIPO_SERVICIO_LABELS: Record<string, string> = {
