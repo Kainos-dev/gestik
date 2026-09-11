@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/renovar-servicios", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/renovar-servicios", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/renovar-gastos-fijos", "schedule": "0 9 * * *" }
   ]
 }

@@ -49,7 +49,7 @@ export async function editarServicio(id: string, data: ServicioInput) {
   const parsed = ServicioSchema.parse(data);
 
   const { rows } = await pool.query(
-    `SELECT frecuencia, fecha_inicio, proximo_vencimiento FROM servicios WHERE id = $1`,
+    `SELECT frecuencia, fecha_inicio, proximo_vencimiento, precio, moneda FROM servicios WHERE id = $1`,
     [id],
   );
   const actual = rows[0];
@@ -88,7 +88,38 @@ export async function editarServicio(id: string, data: ServicioInput) {
     ],
   );
 
+  // Si cambió precio o moneda, actualiza los cargos de este servicio que
+  // todavía no tienen ningún pago aplicado (el cliente le debe el 100% del
+  // cargo): sin eso, un ajuste de precio quedaba invisible en "Pagos" hasta
+  // la próxima renovación, mostrando el monto viejo aunque el servicio ya
+  // tuviera el nuevo. Los cargos ya cobrados (total o parcialmente) NO se
+  // tocan a propósito, para no reescribir bajo qué monto se hizo ese pago.
+  if (actual && (parsed.precio !== Number(actual.precio) || parsed.moneda !== actual.moneda)) {
+    await pool.query(
+      `WITH pagado AS (
+         SELECT COALESCE(SUM(monto), 0) AS total_pagado FROM pagos WHERE servicio_id = $1
+       ),
+       acumulado AS (
+         SELECT c.id, c.monto,
+           SUM(c.monto) OVER (
+             ORDER BY c.periodo, c.created_at, c.id
+             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           ) AS acumulado_hasta_este
+         FROM cargos c
+         WHERE c.servicio_id = $1
+       )
+       UPDATE cargos
+       SET monto = $2, moneda = $3, updated_at = now()
+       FROM acumulado a, pagado p
+       WHERE cargos.id = a.id
+         AND LEAST(a.monto, GREATEST(0, p.total_pagado - (a.acumulado_hasta_este - a.monto))) = 0`,
+      [id, parsed.precio, parsed.moneda],
+    );
+  }
+
   revalidatePath("/servicios");
+  revalidatePath("/pagos");
+  revalidatePath("/gestion");
   revalidatePath(`/clientes/${parsed.clienteId}`);
 }
 

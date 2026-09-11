@@ -1,6 +1,8 @@
 // src/features/finanzas/queries.ts
 import { pool } from '@/lib/db';
-import { getSaldoPorCliente, getCargos } from '@/features/cargos/queries';
+import { getCargos } from '@/features/cargos/queries';
+import { calcularEstadoCargo } from '@/features/cargos/services';
+import { EstadoCargo } from '@/features/cargos/types';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 
 export interface IngresoMes {
@@ -67,12 +69,12 @@ export async function getIngresosPorCliente(): Promise<IngresoCliente[]> {
     }));
 }
 
-export interface ClienteConDeuda {
+export interface ClienteSaldoCargos {
     clienteId: string;
     clienteNombre: string;
     clienteColor: string;
     moneda: Moneda;
-    deuda: number;
+    monto: number;
     cantidadCargos: number;
 }
 
@@ -92,32 +94,49 @@ export async function getTotalIngresosMes(): Promise<TotalPorMoneda[]> {
     return MONEDAS.map((moneda) => ({ moneda, total: mapa.get(moneda) ?? 0 }));
 }
 
-// La cantidad de cargos pendientes se deriva de getCargos() (que ya calcula
-// cuánto se cubrió de cada uno) en vez de contar todos los cargos históricos
-// del cliente, para que el número que se muestra sea "cuántos períodos le
-// faltan pagar" y no "cuántos períodos se le facturaron alguna vez". Se
-// cuenta por separado en cada moneda: un cliente puede deber en ARS y en USD
-// a la vez, y son dos deudas independientes.
-export async function getClientesConDeuda(): Promise<ClienteConDeuda[]> {
-    const [saldos, cargos] = await Promise.all([getSaldoPorCliente(), getCargos()]);
+// Agrupa por cliente + moneda el saldo sin cubrir de los cargos que están en
+// alguno de "estados" (ver calcularEstadoCargo). Separar por estado acá —y no
+// mostrar un único "saldo total" como antes— es lo que permite distinguir
+// deuda real (VENCIDO, ya pasó el plazo acordado) de plata que todavía está
+// dentro de su ciclo de facturación (PENDIENTE/PARCIAL, no venció todavía).
+function agruparPorEstado(cargos: Awaited<ReturnType<typeof getCargos>>, estados: EstadoCargo[]): ClienteSaldoCargos[] {
+    const acumulado = new Map<string, ClienteSaldoCargos>();
 
-    const pendientesPorCliente = new Map<string, number>();
     for (const c of cargos) {
-        if (c.montoCubierto < c.monto) {
-            const key = `${c.clienteId}:${c.moneda}`;
-            pendientesPorCliente.set(key, (pendientesPorCliente.get(key) ?? 0) + 1);
-        }
+        if (c.montoCubierto >= c.monto) continue;
+        if (!estados.includes(calcularEstadoCargo(c.monto, c.montoCubierto, c.vencimiento))) continue;
+
+        const key = `${c.clienteId}:${c.moneda}`;
+        const actual = acumulado.get(key) ?? {
+            clienteId: c.clienteId,
+            clienteNombre: c.clienteNombre!,
+            clienteColor: c.clienteColor!,
+            moneda: c.moneda,
+            monto: 0,
+            cantidadCargos: 0,
+        };
+        actual.monto += c.monto - c.montoCubierto;
+        actual.cantidadCargos += 1;
+        acumulado.set(key, actual);
     }
 
-    return saldos
-        .filter((s) => s.saldo > 0)
-        .map((s) => ({
-            clienteId: s.clienteId,
-            clienteNombre: s.clienteNombre,
-            clienteColor: s.clienteColor,
-            moneda: s.moneda,
-            deuda: s.saldo,
-            cantidadCargos: pendientesPorCliente.get(`${s.clienteId}:${s.moneda}`) ?? 0,
-        }))
-        .sort((a, b) => b.deuda - a.deuda);
+    return Array.from(acumulado.values()).sort((a, b) => b.monto - a.monto);
+}
+
+export interface ClientesPorEstadoCargo {
+    conDeuda: ClienteSaldoCargos[]; // cargos VENCIDOS: ya pasó el plazo acordado sin cobrarse del todo
+    conPagosPendientes: ClienteSaldoCargos[]; // cargos PENDIENTE/PARCIAL: todavía dentro de plazo
+}
+
+// Separa clientes con deuda REAL (vencida) de los que sólo tienen pagos
+// pendientes dentro de plazo — una sola pasada por getCargos() para no
+// consultarlos dos veces. Se muestran como dos listas aparte a propósito:
+// que un cliente tenga el cargo del mes sin pagar todavía no significa que
+// esté atrasado.
+export async function getClientesPorEstadoCargo(): Promise<ClientesPorEstadoCargo> {
+    const cargos = await getCargos();
+    return {
+        conDeuda: agruparPorEstado(cargos, ['VENCIDO']),
+        conPagosPendientes: agruparPorEstado(cargos, ['PENDIENTE', 'PARCIAL']),
+    };
 }

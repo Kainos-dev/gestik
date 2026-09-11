@@ -2,7 +2,7 @@
 import {
     getIngresosPorMes,
     getIngresosPorCliente,
-    getClientesConDeuda,
+    getClientesPorEstadoCargo,
     getTotalIngresosMes,
 } from '@/features/finanzas/queries';
 import { getPagos } from '@/features/pagos/queries';
@@ -11,7 +11,7 @@ import { getTotalReposicionesDeudaMes } from '@/features/deudas/queries';
 import { IngresosChart } from '@/features/finanzas/components/ingresos-chart';
 import { GastosChart } from '@/features/gastos/components/gastos-chart';
 import { RankingClientes } from '@/features/finanzas/components/ranking-clientes';
-import { ClientesDeuda } from '@/features/finanzas/components/clientes-deuda';
+import { ClientesSaldo } from '@/features/finanzas/components/clientes-saldo';
 import { HistorialTable } from '@/features/finanzas/components/historial-table';
 import { KpiCard } from '@/features/dashboard/components/kpi-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,7 @@ export default async function GestionPage() {
     const [
         ingresosPorMes,
         ingresosPorCliente,
-        clientesConDeuda,
+        clientesPorEstadoCargo,
         historial,
         gastosPorMes,
         totalIngresosMes,
@@ -30,7 +30,7 @@ export default async function GestionPage() {
     ] = await Promise.all([
         getIngresosPorMes(),
         getIngresosPorCliente(),
-        getClientesConDeuda(),
+        getClientesPorEstadoCargo(),
         getPagos(),
         getGastosPorMes(),
         getTotalIngresosMes(),
@@ -87,7 +87,7 @@ export default async function GestionPage() {
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-base">Ingresos por cliente</CardTitle>
@@ -102,7 +102,26 @@ export default async function GestionPage() {
                         <CardTitle className="text-base">Clientes con deuda</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ClientesDeuda clientes={clientesConDeuda} />
+                        <ClientesSaldo
+                            clientes={clientesPorEstadoCargo.conDeuda}
+                            emptyMessage="Ningún cliente tiene deuda vencida. 🎉"
+                            badgeClassName="bg-red-50 text-red-700 border-red-200 font-medium"
+                            cargoLabel="vencido"
+                        />
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Clientes con pagos pendientes</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ClientesSaldo
+                            clientes={clientesPorEstadoCargo.conPagosPendientes}
+                            emptyMessage="Nadie tiene pagos pendientes dentro de plazo."
+                            badgeClassName="bg-amber-50 text-amber-700 border-amber-200 font-medium"
+                            cargoLabel="pendiente"
+                        />
                     </CardContent>
                 </Card>
             </div>
