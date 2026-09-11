@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { EditarClienteDialog } from './editar-cliente-dialog';
 import { formatDate } from '@/lib/utils';
+import { MODALIDAD_PAGO_LABELS } from '@/lib/constants';
 
 const columns: ColumnDef<Cliente>[] = [
     {
@@ -30,6 +31,11 @@ const columns: ColumnDef<Cliente>[] = [
         accessorKey: 'estado',
         header: 'Estado',
         cell: ({ row }) => <StatusBadge value={row.original.estado} />,
+    },
+    {
+        accessorKey: 'modalidadPago',
+        header: 'Modalidad',
+        cell: ({ row }) => MODALIDAD_PAGO_LABELS[row.original.modalidadPago] ?? row.original.modalidadPago,
     },
     {
         accessorKey: 'fechaAlta',

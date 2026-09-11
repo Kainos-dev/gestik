@@ -29,6 +29,30 @@ export function proyectarSiguienteVencimiento(
   return calcularProximoVencimiento(vencimientoAnterior, frecuencia);
 }
 
+// Modalidad de pago del cliente dueño del servicio — ver MODALIDADES_PAGO en
+// clients/schema.ts. Se repite acá como tipo local (en vez de importar de
+// clients/types) porque servicios no necesita conocer el resto de Cliente,
+// sólo este valor puntual para calcular el vencimiento del cargo.
+type ModalidadPagoCliente = 'ANTICIPADO' | 'POSPAGO';
+
+/**
+ * Vencimiento del cargo de un período, según la modalidad de pago del
+ * cliente: ANTICIPADO vence al arrancar el propio período (se cobra antes
+ * de trabajar), POSPAGO vence al arrancar el próximo (se cobra al terminar
+ * de trabajar el período actual) — éste último es el único comportamiento
+ * que existía antes de que se distinguiera por cliente. Si no hay próximo
+ * período (servicio UNICO), siempre vence en el propio período sin importar
+ * la modalidad — no hay "trabajo por adelantado" que cobrar antes.
+ */
+export function calcularVencimientoCargo(
+  periodoInicio: Date,
+  proximoPeriodo: Date | null,
+  modalidadPago: ModalidadPagoCliente,
+): Date {
+  if (!proximoPeriodo) return periodoInicio;
+  return modalidadPago === 'ANTICIPADO' ? periodoInicio : proximoPeriodo;
+}
+
 /**
  * Estado de renovación calculado (no persistido) a partir de
  * "proximoVencimiento": mismo criterio que calcularEstadoPagoGastoFijo en

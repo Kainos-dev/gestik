@@ -85,6 +85,18 @@ export const METODO_PAGO_LABELS: Record<string, string> = {
   OTRO: 'Otro',
 };
 
+// Versión corta para columnas de tabla; MODALIDAD_PAGO_LABELS_DETALLE trae
+// la explicación completa para el formulario de alta/edición de cliente.
+export const MODALIDAD_PAGO_LABELS: Record<string, string> = {
+  ANTICIPADO: 'Anticipado',
+  POSPAGO: 'Pospago',
+};
+
+export const MODALIDAD_PAGO_LABELS_DETALLE: Record<string, string> = {
+  ANTICIPADO: 'Anticipado — paga antes de trabajar el mes',
+  POSPAGO: 'Pospago — paga al finalizar el mes',
+};
+
 export const CATEGORIA_GASTO_LABELS: Record<string, string> = {
   SOFTWARE: 'Software',
   HOSTING: 'Hosting',

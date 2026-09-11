@@ -4,7 +4,7 @@
 import { pool } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { ServicioSchema, ServicioInput } from "./schema";
-import { calcularProximoVencimiento } from "./services";
+import { calcularProximoVencimiento, calcularVencimientoCargo } from "./services";
 
 export async function crearServicio(data: ServicioInput) {
   const parsed = ServicioSchema.parse(data);
@@ -12,6 +12,12 @@ export async function crearServicio(data: ServicioInput) {
     parsed.fechaInicio,
     parsed.frecuencia,
   );
+
+  const { rows: clienteRows } = await pool.query(
+    `SELECT modalidad_pago FROM clientes WHERE id = $1`,
+    [parsed.clienteId],
+  );
+  const modalidadPago = clienteRows[0]?.modalidad_pago ?? 'POSPAGO';
 
   const { rows } = await pool.query(
     `INSERT INTO servicios (cliente_id, tipo, nombre_personalizado, precio, moneda, frecuencia, fecha_inicio, proximo_vencimiento)
@@ -30,9 +36,9 @@ export async function crearServicio(data: ServicioInput) {
   );
 
   // El primer período también genera su cargo, igual que "Renovar" hará con
-  // los siguientes. Si es UNICO no hay "próximo período", así que vence en
-  // el propio período (se debe apenas se emite).
-  const vencimientoCargo = proximoVencimiento ?? parsed.fechaInicio;
+  // los siguientes — el vencimiento depende de la modalidad de pago del
+  // cliente (ver calcularVencimientoCargo).
+  const vencimientoCargo = calcularVencimientoCargo(parsed.fechaInicio, proximoVencimiento, modalidadPago);
   await pool.query(
     `INSERT INTO cargos (cliente_id, servicio_id, periodo, vencimiento, monto, moneda)
      VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -94,20 +100,22 @@ export async function editarServicio(id: string, data: ServicioInput) {
 
 
 // Genera el cargo del período vigente de "servicio" (fila cruda de la tabla,
-// snake_case) y avanza su proximo_vencimiento. Compartido entre la renovación
+// snake_case, con "modalidad_pago" del cliente sumado por JOIN en los
+// callers) y avanza su proximo_vencimiento. Compartido entre la renovación
 // manual (un ciclo) y la automática (posible catch-up de varios ciclos).
 async function renovarUnCiclo(servicio: any, precio: number): Promise<Date> {
   const fechaBase = servicio.proximo_vencimiento ?? servicio.fecha_inicio;
   const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia)!;
 
-  // 1. Genera el cargo correspondiente a este período (vence al arrancar el
-  //    próximo, nunca es UNICO en este flujo), con el precio vigente al
-  //    renovar (si se editó, se copia acá para siempre, igual que ya pasa
-  //    con cualquier cargo)
+  // 1. Genera el cargo correspondiente a este período, con el precio vigente
+  //    al renovar (si se editó, se copia acá para siempre, igual que ya pasa
+  //    con cualquier cargo) y el vencimiento según la modalidad de pago del
+  //    cliente (ver calcularVencimientoCargo).
+  const vencimientoCargo = calcularVencimientoCargo(new Date(fechaBase), nuevoVencimiento, servicio.modalidad_pago);
   await pool.query(
     `INSERT INTO cargos (cliente_id, servicio_id, periodo, vencimiento, monto, moneda)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [servicio.cliente_id, servicio.id, fechaBase, nuevoVencimiento, precio, servicio.moneda]
+    [servicio.cliente_id, servicio.id, fechaBase, vencimientoCargo, precio, servicio.moneda]
   );
 
   // 2. Avanza el vencimiento del servicio al siguiente ciclo, y si el precio
@@ -121,7 +129,12 @@ async function renovarUnCiclo(servicio: any, precio: number): Promise<Date> {
 }
 
 export async function renovarServicio(servicioId: string, nuevoPrecio?: number) {
-  const { rows } = await pool.query(`SELECT * FROM servicios WHERE id = $1`, [servicioId]);
+  const { rows } = await pool.query(
+    `SELECT s.*, c.modalidad_pago FROM servicios s
+     JOIN clientes c ON c.id = s.cliente_id
+     WHERE s.id = $1`,
+    [servicioId],
+  );
   const servicio = rows[0];
   if (!servicio || servicio.frecuencia === 'UNICO') return;
   if (servicio.estado !== 'ACTIVO') return;
@@ -147,8 +160,9 @@ const MAX_CICLOS_CATCH_UP = 24;
 
 export async function renovarServiciosVencidos() {
   const { rows } = await pool.query(
-    `SELECT * FROM servicios
-     WHERE estado = 'ACTIVO' AND frecuencia != 'UNICO' AND proximo_vencimiento <= now()`
+    `SELECT s.*, c.modalidad_pago FROM servicios s
+     JOIN clientes c ON c.id = s.cliente_id
+     WHERE s.estado = 'ACTIVO' AND s.frecuencia != 'UNICO' AND s.proximo_vencimiento <= now()`
   );
 
   let cargosCreados = 0;

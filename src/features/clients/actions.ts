@@ -15,9 +15,17 @@ export async function crearCliente(data: ClienteInput) {
     const color = pickClientColor(Number(rows[0].total));
 
     await pool.query(
-        `INSERT INTO clientes (nombre, empresa, email, whatsapp, observaciones, color)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-        [parsed.nombre, parsed.empresa ?? null, parsed.email ?? null, parsed.whatsapp ?? null, parsed.observaciones ?? null, color]
+        `INSERT INTO clientes (nombre, empresa, email, whatsapp, observaciones, color, modalidad_pago)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+            parsed.nombre,
+            parsed.empresa ?? null,
+            parsed.email ?? null,
+            parsed.whatsapp ?? null,
+            parsed.observaciones ?? null,
+            color,
+            parsed.modalidadPago,
+        ]
     );
 
     revalidatePath('/clientes');
@@ -35,9 +43,20 @@ export async function editarCliente(id: string, data: ClienteUpdateInput) {
          observaciones = COALESCE($5, observaciones),
          estado = COALESCE($6, estado),
          color = COALESCE($7, color),
+         modalidad_pago = COALESCE($8, modalidad_pago),
          updated_at = now()
-     WHERE id = $8`,
-        [parsed.nombre, parsed.empresa, parsed.email, parsed.whatsapp, parsed.observaciones, parsed.estado, parsed.color, id]
+     WHERE id = $9`,
+        [
+            parsed.nombre,
+            parsed.empresa,
+            parsed.email,
+            parsed.whatsapp,
+            parsed.observaciones,
+            parsed.estado,
+            parsed.color,
+            parsed.modalidadPago,
+            id,
+        ]
     );
 
     revalidatePath('/clientes');

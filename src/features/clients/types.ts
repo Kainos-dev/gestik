@@ -1,6 +1,10 @@
 // src/features/clientes/types.ts
 export type EstadoCliente = 'ACTIVO' | 'PAUSADO' | 'FINALIZADO';
 
+// ANTICIPADO/POSPAGO — ver MODALIDADES_PAGO en schema.ts para el detalle de
+// qué determina en el cálculo de vencimiento de cargos.
+export type ModalidadPago = 'ANTICIPADO' | 'POSPAGO';
+
 export interface Cliente {
     id: string;
     nombre: string;
@@ -11,6 +15,7 @@ export interface Cliente {
     fechaAlta: Date;
     observaciones: string | null;
     color: string;
+    modalidadPago: ModalidadPago;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -27,6 +32,7 @@ export function mapCliente(row: any): Cliente {
         fechaAlta: row.fecha_alta,
         observaciones: row.observaciones,
         color: row.color,
+        modalidadPago: row.modalidad_pago,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };

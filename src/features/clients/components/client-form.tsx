@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 
-import { ClienteSchema, ESTADOS_CLIENTE } from '../schema';
+import { ClienteSchema, ESTADOS_CLIENTE, MODALIDADES_PAGO } from '../schema';
 import { crearCliente, editarCliente } from '../actions';
 import { Cliente } from '../types';
 
@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { ESTADO_STYLES } from '@/lib/constants';
+import { ESTADO_STYLES, MODALIDAD_PAGO_LABELS_DETALLE } from '@/lib/constants';
 import { CLIENT_COLOR_PALETTE } from '@/lib/client-colors';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +60,9 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
             empresa: cliente?.empresa ?? '',
             email: cliente?.email ?? '',
             whatsapp: cliente?.whatsapp ?? '',
+            // Nuevo cliente: preseleccionado en ANTICIPADO (política actual),
+            // pero elegible — ver MODALIDADES_PAGO en schema.ts.
+            modalidadPago: cliente?.modalidadPago ?? 'ANTICIPADO',
             observaciones: cliente?.observaciones ?? '',
             estado: cliente?.estado,
             color: cliente?.color,
@@ -114,6 +117,29 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
                     <Input id="whatsapp" {...register('whatsapp')} />
                     {errors.whatsapp && <p className="text-sm text-red-600">{errors.whatsapp.message}</p>}
                 </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <Label htmlFor="modalidadPago">Modalidad de pago *</Label>
+                <Controller
+                    name="modalidadPago"
+                    control={control}
+                    render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger id="modalidadPago">
+                                <SelectValue placeholder="Seleccionar modalidad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {MODALIDADES_PAGO.map((modalidad) => (
+                                    <SelectItem key={modalidad} value={modalidad}>
+                                        {MODALIDAD_PAGO_LABELS_DETALLE[modalidad]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+                {errors.modalidadPago && <p className="text-sm text-red-600">{errors.modalidadPago.message}</p>}
             </div>
 
             {esEdicion && (

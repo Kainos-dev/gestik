@@ -1,0 +1,19 @@
+
+> gestik@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by process 20544, using available port 3001 instead.
+▲ Next.js 16.2.11 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.42:3001
+- Environments: .env
+✓ Ready in 849ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3000
+- PID:          20544
+- Dir:          C:\Projects\gestik
+- Log:          .next\dev\logs\next-development.log
+
+Run taskkill /PID 20544 /F to stop it.
+[?25h
