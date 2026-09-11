@@ -1,6 +1,6 @@
 // src/app/(dashboard)/gastos/page.tsx
 import { getGastosFijos, getGastos } from '@/features/gastos/queries';
-import { getDeudas, getIntegrantes, getIntegrantesActivos } from '@/features/deudas/queries';
+import { getDeudas, getIntegrantes, getIntegrantesActivos, getReposicionesAgrupadas } from '@/features/deudas/queries';
 import { GastosFijosTable } from '@/features/gastos/components/gastos-fijos-table';
 import { GastosTable } from '@/features/gastos/components/gastos-table';
 import { DeudasTable } from '@/features/deudas/components/deudas-table';
@@ -12,12 +12,13 @@ import { IntegrantesManagerDialog } from '@/features/deudas/components/integrant
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default async function GastosPage() {
-    const [gastosFijos, gastos, deudas, integrantes, integrantesActivos] = await Promise.all([
+    const [gastosFijos, gastos, deudas, integrantes, integrantesActivos, reposicionesPorDeuda] = await Promise.all([
         getGastosFijos(),
         getGastos(),
         getDeudas(),
         getIntegrantes(),
         getIntegrantesActivos(),
+        getReposicionesAgrupadas(),
     ]);
 
     return (
@@ -51,7 +52,7 @@ export default async function GastosPage() {
                         <IntegrantesManagerDialog integrantes={integrantes} />
                         <NuevaDeudaDialog integrantes={integrantesActivos} />
                     </div>
-                    <DeudasTable deudas={deudas} integrantes={integrantesActivos} />
+                    <DeudasTable deudas={deudas} integrantes={integrantesActivos} reposicionesPorDeuda={reposicionesPorDeuda} />
                 </TabsContent>
             </Tabs>
         </div>

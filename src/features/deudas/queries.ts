@@ -48,6 +48,18 @@ export async function getReposicionesByDeuda(deudaId: string): Promise<Reposicio
     return rows.map(mapReposicionDeuda);
 }
 
+// Todas las reposiciones agrupadas por deuda_id, para mostrar el historial
+// de cada deuda en la tabla sin hacer una query por fila.
+export async function getReposicionesAgrupadas(): Promise<Record<string, ReposicionDeuda[]>> {
+    const { rows } = await pool.query(`SELECT * FROM reposiciones_deuda ORDER BY fecha DESC`);
+    const agrupadas: Record<string, ReposicionDeuda[]> = {};
+    for (const row of rows) {
+        const reposicion = mapReposicionDeuda(row);
+        (agrupadas[reposicion.deudaId] ??= []).push(reposicion);
+    }
+    return agrupadas;
+}
+
 export interface TotalPorMoneda {
     moneda: Moneda;
     total: number;
