@@ -1,7 +1,8 @@
 // src/features/dashboard/queries.ts
 import { pool } from '@/lib/db';
 import { Pago, mapPago } from '@/features/pagos/types';
-import { getSaldoPorCliente } from '@/features/cargos/queries';
+import { SaldoCliente, getCargos, getSaldoPorCliente } from '@/features/cargos/queries';
+import { Cargo } from '@/features/cargos/types';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 
 export interface KpiPorMoneda {
@@ -98,4 +99,39 @@ export async function getUltimosMovimientos(): Promise<Pago[]> {
      LIMIT 10`
     );
     return rows.map(mapPago);
+}
+
+// Detalle que compone cada KPI del mes, para mostrarlo al abrir la tarjeta.
+// Mismos criterios que getKpis: cargos por mes de "periodo", pagos por mes
+// de "fecha", pendiente por saldo de cliente y moneda.
+export interface DetalleKpis {
+    cargosMes: Cargo[];
+    pagosMes: Pago[];
+    saldosPendientes: SaldoCliente[];
+}
+
+export async function getDetalleKpis(): Promise<DetalleKpis> {
+    const [cargos, pagos, saldos] = await Promise.all([
+        getCargos(),
+        pool.query(
+            `SELECT p.*, c.nombre AS cliente_nombre, c.color AS cliente_color, s.tipo AS servicio_nombre
+       FROM pagos p
+       JOIN clientes c ON c.id = p.cliente_id
+       LEFT JOIN servicios s ON s.id = p.servicio_id
+       WHERE date_trunc('month', p.fecha) = date_trunc('month', CURRENT_DATE)
+       ORDER BY p.fecha DESC, p.created_at DESC`
+        ),
+        getSaldoPorCliente(),
+    ]);
+
+    const hoy = new Date();
+    return {
+        cargosMes: cargos.filter(
+            (c) =>
+                new Date(c.periodo).getUTCFullYear() === hoy.getFullYear() &&
+                new Date(c.periodo).getUTCMonth() === hoy.getMonth()
+        ),
+        pagosMes: pagos.rows.map(mapPago),
+        saldosPendientes: saldos.filter((s) => s.saldo > 0).sort((a, b) => b.saldo - a.saldo),
+    };
 }
