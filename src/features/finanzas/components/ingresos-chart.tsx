@@ -12,7 +12,12 @@ function formatMes(mes: string) {
     return MESES_CORTOS[Number(mm) - 1];
 }
 
-const COLOR_POR_MONEDA = { ARS: 'hsl(var(--primary))', USD: 'hsl(var(--primary) / 0.5)' } as const;
+// Colores a mano (no var(--primary)): un color pisado en un atributo SVG
+// crudo como "fill" no resuelve custom properties CSS de forma confiable
+// entre navegadores, así que se escriben los valores de la paleta tal
+// cual en vez de depender de la variable. Naranja de marca para ARS, una
+// variante más clara para USD.
+const COLOR_POR_MONEDA = { ARS: 'oklch(0.652 0.233 33)', USD: 'oklch(0.75 0.14 33)' } as const;
 
 // Un solo eje de $ no tiene sentido cuando mezcla ARS y USD, así que cada
 // moneda se dibuja como su propia serie (barra), formateada con su símbolo.

@@ -105,7 +105,7 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
                 {errors.empresa && <p className="text-sm text-red-600">{errors.empresa.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="email">Email</Label>
                     <Input id="email" type="email" {...register('email')} />
@@ -126,8 +126,20 @@ export function ClienteForm({ cliente, onSuccess }: ClienteFormProps) {
                     control={control}
                     render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger id="modalidadPago">
-                                <SelectValue placeholder="Seleccionar modalidad" />
+                            {/* w-full: el default del trigger es "w-fit" (se ajusta al
+                                contenido), y las frases de MODALIDAD_PAGO_LABELS_DETALLE
+                                son largas ("Anticipado — paga antes de trabajar el mes") —
+                                sin esto quedaban cortadas en vez de ocupar todo el ancho
+                                disponible del diálogo.
+                                El render-prop en SelectValue es necesario porque, sin él,
+                                el valor "cerrado" del select muestra el código crudo del
+                                enum (ej. "ANTICIPADO") en vez de la frase mapeada — mismo
+                                patrón que ya usan los selects de cliente/servicio en
+                                pago-form.tsx. */}
+                            <SelectTrigger id="modalidadPago" className="w-full">
+                                <SelectValue placeholder="Seleccionar modalidad">
+                                    {(value: string) => MODALIDAD_PAGO_LABELS_DETALLE[value] ?? 'Seleccionar modalidad'}
+                                </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {MODALIDADES_PAGO.map((modalidad) => (

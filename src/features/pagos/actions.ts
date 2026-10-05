@@ -4,30 +4,55 @@
 import { pool } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { PagoSchema, PagoInput } from './schema';
+import { calcularMontoAcreditado } from './services';
+import { Moneda } from '@/lib/moneda';
 
-// El pago siempre hereda la moneda del servicio cuando está asociado a uno
-// (no se puede pagar un servicio en USD con pesos ni viceversa) — se ignora
-// lo que haya mandado el form en ese caso, para que un bug de UI no pueda
-// dejar un pago en una moneda distinta a la del servicio que dice cubrir.
-async function resolverMoneda(servicioId: string | undefined, monedaForm: 'ARS' | 'USD') {
-    if (!servicioId) return monedaForm;
+// Resuelve qué se acredita al cargo (monto + moneda) a partir de lo que el
+// cliente efectivamente pagó. Si hay servicio asociado, el crédito siempre
+// va en SU moneda (no se puede pagar un servicio en una moneda distinta a
+// la que está facturado) — convertido con tipoCambio si pagó en otra. Si es
+// un pago suelto (sin servicio_id) no hay nada contra qué convertir: se
+// acredita tal cual en la moneda que pagó.
+async function resolverConversion(
+    servicioId: string | undefined,
+    montoPagado: number,
+    monedaPago: Moneda,
+    tipoCambio: number | undefined
+): Promise<{ monto: number; moneda: Moneda }> {
+    if (!servicioId) return { monto: montoPagado, moneda: monedaPago };
+
     const { rows } = await pool.query(`SELECT moneda FROM servicios WHERE id = $1`, [servicioId]);
-    return rows[0]?.moneda ?? monedaForm;
+    const monedaServicio: Moneda = rows[0]?.moneda ?? monedaPago;
+
+    if (monedaPago !== monedaServicio && !tipoCambio) {
+        throw new Error('Falta el tipo de cambio para convertir el pago');
+    }
+
+    const monto = calcularMontoAcreditado(montoPagado, monedaPago, monedaServicio, tipoCambio);
+    return { monto, moneda: monedaServicio };
 }
 
 export async function crearPago(data: PagoInput) {
     const parsed = PagoSchema.parse(data);
-    const moneda = await resolverMoneda(parsed.servicioId, parsed.moneda);
+    const { monto, moneda } = await resolverConversion(
+        parsed.servicioId,
+        parsed.montoPagado,
+        parsed.monedaPago,
+        parsed.tipoCambio
+    );
 
     await pool.query(
-        `INSERT INTO pagos (cliente_id, servicio_id, fecha, monto, moneda, metodo_pago, comprobante_url, notas)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO pagos (cliente_id, servicio_id, fecha, monto, moneda, moneda_pago, monto_pagado, tipo_cambio, metodo_pago, comprobante_url, notas)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
             parsed.clienteId,
             parsed.servicioId ?? null,
             parsed.fecha,
-            parsed.monto,
+            monto,
             moneda,
+            parsed.monedaPago,
+            parsed.montoPagado,
+            moneda !== parsed.monedaPago ? parsed.tipoCambio : null,
             parsed.metodoPago,
             parsed.comprobanteUrl ?? null,
             parsed.notas ?? null,
@@ -42,18 +67,26 @@ export async function crearPago(data: PagoInput) {
 
 export async function editarPago(id: string, data: PagoInput) {
     const parsed = PagoSchema.parse(data);
-    const moneda = await resolverMoneda(parsed.servicioId, parsed.moneda);
+    const { monto, moneda } = await resolverConversion(
+        parsed.servicioId,
+        parsed.montoPagado,
+        parsed.monedaPago,
+        parsed.tipoCambio
+    );
 
     await pool.query(
         `UPDATE pagos
-     SET servicio_id = $1, fecha = $2, monto = $3, moneda = $4, metodo_pago = $5,
-         comprobante_url = $6, notas = $7, updated_at = now()
-     WHERE id = $8`,
+     SET servicio_id = $1, fecha = $2, monto = $3, moneda = $4, moneda_pago = $5, monto_pagado = $6,
+         tipo_cambio = $7, metodo_pago = $8, comprobante_url = $9, notas = $10, updated_at = now()
+     WHERE id = $11`,
         [
             parsed.servicioId ?? null,
             parsed.fecha,
-            parsed.monto,
+            monto,
             moneda,
+            parsed.monedaPago,
+            parsed.montoPagado,
+            moneda !== parsed.monedaPago ? parsed.tipoCambio : null,
             parsed.metodoPago,
             parsed.comprobanteUrl ?? null,
             parsed.notas ?? null,

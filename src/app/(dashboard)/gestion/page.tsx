@@ -10,6 +10,8 @@ import { IngresosChart } from '@/features/finanzas/components/ingresos-chart';
 import { GastosChart } from '@/features/gastos/components/gastos-chart';
 import { HistorialTable } from '@/features/finanzas/components/historial-table';
 import { KpiCard } from '@/features/dashboard/components/kpi-card';
+import { ChartDetalleCard } from '@/components/shared/chart-detalle-card';
+import { MesesDetalleTabla } from '@/components/shared/meses-detalle-tabla';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MONEDAS, formatCurrency } from '@/lib/moneda';
 
@@ -45,7 +47,7 @@ export default async function GestionPage() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-semibold">Gestión</h1>
+            <h1 className="text-2xl font-semibold">Balance mensual</h1>
 
             {balancePorMoneda.map((b) => (
                 <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -60,23 +62,21 @@ export default async function GestionPage() {
             ))}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Ingresos últimos 6 meses</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <IngresosChart data={ingresosPorMes} />
-                    </CardContent>
-                </Card>
+                <ChartDetalleCard
+                    titulo="Ingresos últimos 6 meses"
+                    descripcion="Total ingresado por mes, agrupados por moneda."
+                    detalle={<MesesDetalleTabla data={ingresosPorMes} />}
+                >
+                    <IngresosChart data={ingresosPorMes} />
+                </ChartDetalleCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Gastos últimos 6 meses</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <GastosChart data={gastosPorMes} />
-                    </CardContent>
-                </Card>
+                <ChartDetalleCard
+                    titulo="Gastos últimos 6 meses"
+                    descripcion="Gastos total registrado por mes, agrupados por moneda."
+                    detalle={<MesesDetalleTabla data={gastosPorMes} />}
+                >
+                    <GastosChart data={gastosPorMes} />
+                </ChartDetalleCard>
             </div>
 
             <Card>

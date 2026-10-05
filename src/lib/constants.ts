@@ -94,7 +94,7 @@ export const MODALIDAD_PAGO_LABELS: Record<string, string> = {
 
 export const MODALIDAD_PAGO_LABELS_DETALLE: Record<string, string> = {
   ANTICIPADO: 'Anticipado — paga antes de trabajar el mes',
-  POSPAGO: 'Pospago — paga al finalizar el mes',
+  POSPAGO: 'Pospago — paga al finalizar o durante el mes',
 };
 
 export const CATEGORIA_GASTO_LABELS: Record<string, string> = {

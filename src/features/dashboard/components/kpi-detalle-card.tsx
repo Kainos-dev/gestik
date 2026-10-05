@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface KpiDetalleCardProps {
-    label: string;
+    label: ReactNode; // string simple, o JSX con el mes aclarado en una segunda línea (ver dashboard/page.tsx)
     value: string;
     descripcion: string;
     children: ReactNode; // detalle ya renderizado en el servidor

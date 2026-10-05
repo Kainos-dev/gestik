@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 
 import { PagoSchema, PagoInput, METODOS_PAGO } from '../schema';
 import { crearPago, editarPago } from '../actions';
+import { calcularMontoAcreditado } from '../services';
 import { Pago } from '../types';
 import { Cliente } from '@/features/clients/types';
 
@@ -24,7 +25,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
-import { MONEDAS, Moneda } from '@/lib/moneda';
+import { MONEDAS, Moneda, formatCurrency } from '@/lib/moneda';
 import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { DatePicker } from '@/components/shared/date-picker';
 
@@ -67,8 +68,9 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             clienteId: pago?.clienteId ?? clienteIdFijo ?? '',
             servicioId: pago?.servicioId ?? servicioIdFijo ?? '',
             fecha: pago?.fecha ?? new Date(),
-            monto: pago?.monto ?? montoSugerido ?? 0,
-            moneda: pago?.moneda ?? 'ARS',
+            montoPagado: pago?.montoPagado ?? montoSugerido ?? 0,
+            monedaPago: pago?.monedaPago ?? 'ARS',
+            tipoCambio: pago?.tipoCambio ?? undefined,
             metodoPago: pago?.metodoPago ?? 'TRANSFERENCIA',
             comprobanteUrl: pago?.comprobanteUrl ?? '',
             notas: pago?.notas ?? '',
@@ -77,6 +79,9 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
 
     const clienteSeleccionado = watch('clienteId');
     const servicioSeleccionado = watch('servicioId');
+    const monedaPago = watch('monedaPago');
+    const montoPagado = watch('montoPagado');
+    const tipoCambio = watch('tipoCambio');
 
     // Cuando cambia el cliente, recarga la lista de servicios disponibles para asociar
     useEffect(() => {
@@ -90,14 +95,40 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             .catch(() => setServicios([]));
     }, [clienteSeleccionado]);
 
-    // El pago hereda la moneda del servicio elegido (no se puede pagar en otra) —
-    // el selector de moneda solo queda editable cuando no hay servicio asociado.
+    // Al elegir un servicio, la moneda en la que pagó arranca igual a la del
+    // servicio como valor por defecto (el caso más común), pero queda
+    // editable: si el cliente pagó en otra moneda, más abajo aparece el
+    // campo de tipo de cambio para convertir — ver requiereConversion. Sólo
+    // se aplica al crear: en edición NO hay que pisar la monedaPago que ya
+    // traía el pago (podría ser justamente uno pagado en otra moneda) apenas
+    // se resuelve la lista de servicios y matchea el servicio actual.
     const servicioElegido = servicios.find((s) => s.id === servicioSeleccionado);
     useEffect(() => {
-        if (servicioElegido) setValue('moneda', servicioElegido.moneda);
-    }, [servicioElegido, setValue]);
+        if (!esEdicion && servicioElegido) setValue('monedaPago', servicioElegido.moneda);
+    }, [esEdicion, servicioElegido, setValue]);
+
+    const requiereConversion = Boolean(servicioElegido) && monedaPago !== servicioElegido?.moneda;
+
+    let montoAcreditadoPreview: number | null = null;
+    if (requiereConversion && servicioElegido && tipoCambio) {
+        try {
+            montoAcreditadoPreview = calcularMontoAcreditado(
+                Number(montoPagado) || 0,
+                monedaPago,
+                servicioElegido.moneda,
+                Number(tipoCambio)
+            );
+        } catch {
+            montoAcreditadoPreview = null;
+        }
+    }
 
     function onSubmit(data: PagoInput) {
+        if (requiereConversion && !data.tipoCambio) {
+            toast.error('Ingresá el tipo de cambio para convertir el pago');
+            return;
+        }
+
         startTransition(async () => {
             try {
                 if (esEdicion && pago) {
@@ -187,21 +218,17 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <Label htmlFor="monto">Monto *</Label>
+                    <Label htmlFor="montoPagado">Monto pagado *</Label>
                     <div className="flex gap-2">
-                        <Input id="monto" type="number" step="0.01" className="flex-1" {...register('monto')} />
+                        <Input id="montoPagado" type="number" step="0.01" className="flex-1" {...register('montoPagado')} />
                         <Controller
-                            name="moneda"
+                            name="monedaPago"
                             control={control}
                             render={({ field }) => (
-                                <Select
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                    disabled={Boolean(servicioElegido)}
-                                >
-                                    <SelectTrigger id="moneda" className="w-24">
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                    <SelectTrigger id="monedaPago" className="w-24">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -215,12 +242,12 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                             )}
                         />
                     </div>
-                    {servicioElegido && (
+                    {servicioElegido && !requiereConversion && (
                         <p className="text-xs text-muted-foreground">
-                            Moneda fijada por el servicio asociado.
+                            Misma moneda que el servicio asociado ({servicioElegido.moneda}).
                         </p>
                     )}
-                    {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
+                    {errors.montoPagado && <p className="text-sm text-red-600">{errors.montoPagado.message}</p>}
                 </div>
 
                 <div className="space-y-1.5">
@@ -234,6 +261,18 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                 </div>
             </div>
 
+            {requiereConversion && servicioElegido && (
+                <div className="space-y-1.5">
+                    <Label htmlFor="tipoCambio">Tipo de cambio (ARS por USD) *</Label>
+                    <Input id="tipoCambio" type="number" step="0.0001" placeholder="Ej: 1000" {...register('tipoCambio')} />
+                    <p className="text-sm text-muted-foreground">
+                        {montoAcreditadoPreview !== null
+                            ? `Se acreditan ${formatCurrency(montoAcreditadoPreview, servicioElegido.moneda)} al servicio (en ${servicioElegido.moneda}).`
+                            : 'Ingresá el tipo de cambio para ver cuánto se acredita al servicio.'}
+                    </p>
+                </div>
+            )}
+
             <div className="space-y-1.5">
                 <Label htmlFor="metodoPago">Método de pago *</Label>
                 <Controller
@@ -242,7 +281,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                     render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
                             <SelectTrigger id="metodoPago">
-                                <SelectValue />
+                                <SelectValue>{(value: string) => METODO_PAGO_LABELS[value] ?? value}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {METODOS_PAGO.map((m) => (

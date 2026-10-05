@@ -1,116 +1,84 @@
 // src/app/(dashboard)/dashboard/page.tsx
-import { getIngresosPorCliente, getClientesPorEstadoCargo } from '@/features/finanzas/queries';
-import { RankingClientes } from '@/features/finanzas/components/ranking-clientes';
-import { ClientesSaldo } from '@/features/finanzas/components/clientes-saldo';
-import { getDetalleKpis, getKpis, getProximosVencimientos, getUltimosMovimientos } from '@/features/dashboard/queries';
-import { KpiCard } from '@/features/dashboard/components/kpi-card';
+import { getDetalleKpis, getKpis } from '@/features/dashboard/queries';
 import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card';
-import { DetalleCobrado, DetalleFacturado, DetallePendiente } from '@/features/dashboard/components/kpi-detalle-listas';
-import { VencimientosList } from '@/features/dashboard/components/vencimientos-list';
-import { UltimosMovimientos } from '@/features/dashboard/components/ultimos-movimientos';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DetalleCobrado, DetalleFacturado, DetalleVencido } from '@/features/dashboard/components/kpi-detalle-listas';
+import {
+    getDisponibleEnMP,
+    getMesesPendientesDeReparto,
+    getRepartosMensuales,
+} from '@/features/balance-mensual/queries';
+import { BalanceMensualPanel } from '@/features/balance-mensual/components/balance-mensual-panel';
+import { TipoCambioMensualGate } from '@/features/balance-mensual/components/tipo-cambio-mensual-gate';
 import { formatCurrency } from '@/lib/moneda';
 
+// "Septiembre 2026", "Octubre 2026", etc. — para que los paneles "de este
+// mes" aclaren a qué mes se refieren en vez de depender de que quien lo mira
+// sepa en qué fecha está parado el sistema.
+function nombreMesActual(): string {
+    const nombre = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date());
+    return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+}
+
 export default async function DashboardPage() {
-    const [kpis, vencimientos, movimientos, detalle, ingresosPorCliente, clientesPorEstadoCargo] = await Promise.all([
+    const [kpis, detalle, mesesPendientesDeReparto, repartos, disponibleMP] = await Promise.all([
         getKpis(),
-        getProximosVencimientos(),
-        getUltimosMovimientos(),
         getDetalleKpis(),
-        getIngresosPorCliente(),
-        getClientesPorEstadoCargo(),
+        getMesesPendientesDeReparto(),
+        getRepartosMensuales(),
+        getDisponibleEnMP(),
     ]);
+
+    const mesActual = nombreMesActual();
+    // Sólo bloquean los que tuvieron Facturado en USD (los de USD=0 se
+    // generan solos vía cron, nunca deberían llegar a verse acá — pero por
+    // las dudas se filtran igual).
+    const mesesQueNecesitanTipoCambio = mesesPendientesDeReparto.filter((m) => m.facturadoUsd > 0);
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <h1 className="text-2xl font-semibold">Gestión</h1>
+
+            <TipoCambioMensualGate mesesPendientes={mesesQueNecesitanTipoCambio} />
 
             {kpis.porMoneda.map((k) => (
                 <div key={k.moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <KpiDetalleCard
-                        label={`Dinero que debería entrar este mes (${k.moneda})`}
+                        label={
+                            <>
+                                Dinero que falta entrar este mes ({k.moneda})
+                                <br />
+                                <span className="italic font-normal text-muted-foreground">{mesActual}</span>
+                            </>
+                        }
                         value={formatCurrency(k.totalFacturadoMes, k.moneda)}
-                        descripcion="Cargos generados este mes."
+                        descripcion="Cargos que vencen este mes, descontando lo que ya se cobró antes de que arrancara el mes."
                     >
                         <DetalleFacturado cargos={detalle.cargosMes.filter((c) => c.moneda === k.moneda)} />
                     </KpiDetalleCard>
                     <KpiDetalleCard
-                        label={`Cobrado del mes (${k.moneda})`}
+                        label={
+                            <>
+                                Cobrado del mes ({k.moneda})
+                                <br />
+                                <span className="italic font-normal text-muted-foreground">{mesActual}</span>
+                            </>
+                        }
                         value={formatCurrency(k.totalCobradoMes, k.moneda)}
                         descripcion="Pagos recibidos este mes."
                     >
                         <DetalleCobrado pagos={detalle.pagosMes.filter((p) => p.moneda === k.moneda)} />
                     </KpiDetalleCard>
                     <KpiDetalleCard
-                        label={`Pendiente (${k.moneda})`}
-                        value={formatCurrency(k.totalPendiente, k.moneda)}
-                        descripcion="Saldo que debe cada cliente (todos los cargos menos todos los pagos)."
+                        label={`Pagos que no realizaron los clientes (${k.moneda})`}
+                        value={formatCurrency(k.totalVencido, k.moneda)}
+                        descripcion="Cargos cuyo vencimiento ya pasó y todavía no se cubrieron del todo."
                     >
-                        <DetallePendiente saldos={detalle.saldosPendientes.filter((s) => s.moneda === k.moneda)} />
+                        <DetalleVencido saldos={detalle.saldosVencidos.filter((s) => s.moneda === k.moneda)} />
                     </KpiDetalleCard>
                 </div>
             ))}
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-                <KpiCard label="Clientes activos" value={String(kpis.clientesActivos)} />
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Ingresos por cliente</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <RankingClientes ingresos={ingresosPorCliente} />
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Clientes con deuda</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ClientesSaldo
-                            clientes={clientesPorEstadoCargo.conDeuda}
-                            emptyMessage="Ningún cliente tiene deuda vencida. 🎉"
-                            badgeClassName="bg-red-50 text-red-700 border-red-200 font-medium"
-                            cargoLabel="vencido"
-                        />
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Clientes con pagos pendientes</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ClientesSaldo
-                            clientes={clientesPorEstadoCargo.conPagosPendientes}
-                            emptyMessage="Nadie tiene pagos pendientes dentro de plazo."
-                            badgeClassName="bg-amber-50 text-amber-700 border-amber-200 font-medium"
-                            cargoLabel="pendiente"
-                        />
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Próximos vencimientos</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <VencimientosList vencimientos={vencimientos} />
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Últimos movimientos</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <UltimosMovimientos pagos={movimientos} />
-                    </CardContent>
-                </Card>
-            </div>
+            <BalanceMensualPanel repartos={repartos} disponibleMP={disponibleMP} />
         </div>
     );
 }

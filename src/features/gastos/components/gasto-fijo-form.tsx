@@ -88,7 +88,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                 {errors.nombre && <p className="text-sm text-red-600">{errors.nombre.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="categoria">Categoría *</Label>
                     <Controller
@@ -97,7 +97,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                         render={({ field }) => (
                             <Select value={field.value} onValueChange={field.onChange}>
                                 <SelectTrigger id="categoria">
-                                    <SelectValue />
+                                    <SelectValue>{(value: string) => CATEGORIA_GASTO_LABELS[value] ?? value}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {CATEGORIAS_GASTO.map((categoria) => (
@@ -119,7 +119,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                         render={({ field }) => (
                             <Select value={field.value} onValueChange={field.onChange}>
                                 <SelectTrigger id="frecuencia">
-                                    <SelectValue />
+                                    <SelectValue>{(value: string) => FRECUENCIA_GASTO_LABELS[value] ?? value}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {FRECUENCIAS_GASTO.map((frecuencia) => (
@@ -134,7 +134,7 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="monto">Monto *</Label>
                     <div className="flex gap-2">
@@ -183,7 +183,9 @@ export function GastoFijoForm({ gastoFijo, onSuccess }: GastoFijoFormProps) {
                         render={({ field }) => (
                             <Select value={field.value} onValueChange={field.onChange}>
                                 <SelectTrigger id="estado">
-                                    <SelectValue placeholder="Seleccionar estado" />
+                                    <SelectValue placeholder="Seleccionar estado">
+                                        {(value: string) => ESTADO_STYLES[value]?.label ?? value}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {ESTADOS_GASTO_FIJO.map((estado) => (

@@ -95,11 +95,13 @@ export async function editarServicio(id: string, data: ServicioInput) {
   );
 
   // Si cambió precio o moneda, actualiza los cargos de este servicio que
-  // todavía no tienen ningún pago aplicado (el cliente le debe el 100% del
-  // cargo): sin eso, un ajuste de precio quedaba invisible en "Pagos" hasta
-  // la próxima renovación, mostrando el monto viejo aunque el servicio ya
-  // tuviera el nuevo. Los cargos ya cobrados (total o parcialmente) NO se
-  // tocan a propósito, para no reescribir bajo qué monto se hizo ese pago.
+  // todavía no están 100% cubiertos (PENDIENTE o PARCIAL, sin importar si ya
+  // tienen algo de pago aplicado): sin eso, un ajuste de precio quedaba
+  // invisible en "Cobros" hasta la próxima renovación, mostrando el monto
+  // viejo aunque el servicio ya tuviera el nuevo — incluso con un pago
+  // parcial ya registrado, el cliente sigue debiendo la diferencia contra
+  // el precio vigente. Sólo el cargo ya cobrado al 100% queda intacto a
+  // propósito, para no reescribir bajo qué monto se cerró ese pago.
   if (actual && (parsed.precio !== Number(actual.precio) || parsed.moneda !== actual.moneda)) {
     await pool.query(
       `WITH pagado AS (
@@ -118,7 +120,7 @@ export async function editarServicio(id: string, data: ServicioInput) {
        SET monto = $2, moneda = $3, updated_at = now()
        FROM acumulado a, pagado p
        WHERE cargos.id = a.id
-         AND LEAST(a.monto, GREATEST(0, p.total_pagado - (a.acumulado_hasta_este - a.monto))) = 0`,
+         AND LEAST(a.monto, GREATEST(0, p.total_pagado - (a.acumulado_hasta_este - a.monto))) < a.monto`,
       [id, parsed.precio, parsed.moneda],
     );
   }

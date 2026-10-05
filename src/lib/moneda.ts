@@ -9,6 +9,15 @@ export const MONEDA_LABELS: Record<Moneda, string> = {
     USD: 'Dólares (USD)',
 };
 
+// minimumFractionDigits: 0 saca el ",00" cuando el monto es un número
+// redondo (la inmensa mayoría de los precios acá) pero conserva los
+// centavos reales cuando existen (ej. una conversión de deuda con tipo de
+// cambio no siempre cae en un número entero).
 export function formatCurrency(value: number, moneda: Moneda): string {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: moneda }).format(value);
+    return new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: moneda,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(value);
 }

@@ -74,7 +74,7 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="categoria">Categoría *</Label>
                     <Controller
@@ -83,7 +83,7 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
                         render={({ field }) => (
                             <Select value={field.value} onValueChange={field.onChange}>
                                 <SelectTrigger id="categoria">
-                                    <SelectValue />
+                                    <SelectValue>{(value: string) => CATEGORIA_GASTO_LABELS[value] ?? value}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {CATEGORIAS_GASTO.map((categoria) => (

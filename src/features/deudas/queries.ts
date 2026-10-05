@@ -65,6 +65,49 @@ export interface TotalPorMoneda {
     total: number;
 }
 
+export interface TotalesDeudas {
+    moneda: Moneda;
+    totalDeudas: number; // histórico: suma de montoTotal de todas las deudas (ACTIVA + SALDADA)
+    totalRepuesto: number; // suma de todas las reposiciones aplicadas, de siempre
+    totalPendiente: number; // suma de lo que falta por deuda, sin que una sobrepagada compense a otra
+}
+
+// Totales "de toda la vida" para el resumen de la sección Deudas — no hay
+// recorte por mes, a diferencia de getTotalReposicionesDeudaMes (esa es
+// para el balance de Gestión). Se agrupa por la moneda de la deuda (no por
+// moneda_pago de las reposiciones): "montoRepuesto" ya está en la moneda de
+// la deuda (ver monto en reposiciones_deuda, domain model), así que suma
+// derecho ahí sin mezclar ARS con USD.
+export async function getTotalesDeudas(): Promise<TotalesDeudas[]> {
+    const { rows } = await pool.query(
+        `WITH repuesto AS (
+       SELECT deuda_id, COALESCE(SUM(monto), 0) AS monto_repuesto
+       FROM reposiciones_deuda
+       GROUP BY deuda_id
+     )
+     SELECT
+       d.moneda,
+       COALESCE(SUM(d.monto_total), 0) AS total_deudas,
+       COALESCE(SUM(COALESCE(r.monto_repuesto, 0)), 0) AS total_repuesto,
+       COALESCE(SUM(GREATEST(0, d.monto_total - COALESCE(r.monto_repuesto, 0))), 0) AS total_pendiente
+     FROM deudas d
+     LEFT JOIN repuesto r ON r.deuda_id = d.id
+     GROUP BY d.moneda`
+    );
+    const porMoneda = new Map(
+        rows.map((r) => [
+            r.moneda,
+            { totalDeudas: Number(r.total_deudas), totalRepuesto: Number(r.total_repuesto), totalPendiente: Number(r.total_pendiente) },
+        ])
+    );
+    return MONEDAS.map((moneda) => ({
+        moneda,
+        totalDeudas: porMoneda.get(moneda)?.totalDeudas ?? 0,
+        totalRepuesto: porMoneda.get(moneda)?.totalRepuesto ?? 0,
+        totalPendiente: porMoneda.get(moneda)?.totalPendiente ?? 0,
+    }));
+}
+
 // Reposiciones del mes agrupadas por moneda_pago (no por la moneda de la
 // deuda): lo que golpea el balance en ARS o USD es la plata que realmente
 // salió del bolsillo, no la moneda en la que está denominada la deuda.

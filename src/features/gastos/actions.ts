@@ -160,6 +160,20 @@ export async function crearGasto(data: GastoInput) {
     revalidatePath('/gestion');
 }
 
+// Elimina un gasto fijo que en realidad no se comporta como tal (ej. cuotas
+// que se pagan de forma irregular, no un débito automático mensual como
+// Adobe/hosting). El/los gastos que ya se habían generado a partir de él NO
+// se borran: "gasto_fijo_id" tiene ON DELETE SET NULL (ver migración
+// crear-tablas-gastos), así que quedan como gastos sueltos en "Registro de
+// Gastos", con su monto/fecha/descripción intactos, listos para seguir
+// registrando los próximos pagos a mano.
+export async function eliminarGastoFijo(id: string) {
+    await pool.query(`DELETE FROM gastos_fijos WHERE id = $1`, [id]);
+
+    revalidatePath('/gastos');
+    revalidatePath('/gestion');
+}
+
 export async function editarGasto(id: string, data: GastoInput) {
     const parsed = GastoSchema.parse(data);
     const moneda = await resolverMonedaGasto(parsed.gastoFijoId, parsed.moneda);

@@ -1,9 +1,16 @@
 // src/app/(dashboard)/gastos/page.tsx
 import { getGastosFijos, getGastos } from '@/features/gastos/queries';
-import { getDeudas, getIntegrantes, getIntegrantesActivos, getReposicionesAgrupadas } from '@/features/deudas/queries';
+import {
+    getDeudas,
+    getIntegrantes,
+    getIntegrantesActivos,
+    getReposicionesAgrupadas,
+    getTotalesDeudas,
+} from '@/features/deudas/queries';
 import { GastosFijosTable } from '@/features/gastos/components/gastos-fijos-table';
 import { GastosTable } from '@/features/gastos/components/gastos-table';
 import { DeudasTable } from '@/features/deudas/components/deudas-table';
+import { DeudasTotales } from '@/features/deudas/components/deudas-totales';
 import { NuevoGastoFijoDialog } from '@/features/gastos/components/new-gasto-fijo-dialog';
 import { TotalAPagarDialog } from '@/features/gastos/components/total-a-pagar-dialog';
 import { NuevoGastoDialog } from '@/features/gastos/components/new-gasto-dialog';
@@ -12,14 +19,16 @@ import { IntegrantesManagerDialog } from '@/features/deudas/components/integrant
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default async function GastosPage() {
-    const [gastosFijos, gastos, deudas, integrantes, integrantesActivos, reposicionesPorDeuda] = await Promise.all([
-        getGastosFijos(),
-        getGastos(),
-        getDeudas(),
-        getIntegrantes(),
-        getIntegrantesActivos(),
-        getReposicionesAgrupadas(),
-    ]);
+    const [gastosFijos, gastos, deudas, integrantes, integrantesActivos, reposicionesPorDeuda, totalesDeudas] =
+        await Promise.all([
+            getGastosFijos(),
+            getGastos(),
+            getDeudas(),
+            getIntegrantes(),
+            getIntegrantesActivos(),
+            getReposicionesAgrupadas(),
+            getTotalesDeudas(),
+        ]);
 
     return (
         <div className="space-y-4">
@@ -48,6 +57,7 @@ export default async function GastosPage() {
                 </TabsContent>
 
                 <TabsContent value="deudas" className="space-y-4 pt-4">
+                    <DeudasTotales totales={totalesDeudas} />
                     <div className="flex justify-end gap-2">
                         <IntegrantesManagerDialog integrantes={integrantes} />
                         <NuevaDeudaDialog integrantes={integrantesActivos} />

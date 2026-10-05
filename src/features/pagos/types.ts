@@ -11,8 +11,11 @@ export interface Pago {
     servicioId: string | null;
     servicioNombre?: string;
     fecha: Date;
-    monto: number;
+    monto: number; // lo que se acredita al cargo, en la moneda del servicio (o la elegida, si es un pago suelto)
     moneda: Moneda;
+    monedaPago: Moneda; // lo que realmente entró (puede diferir de "moneda" — ver tipoCambio)
+    montoPagado: number; // monto en monedaPago
+    tipoCambio: number | null; // sólo cuando monedaPago != moneda
     metodoPago: MetodoPago;
     comprobanteUrl: string | null;
     notas: string | null;
@@ -31,6 +34,9 @@ export function mapPago(row: any): Pago {
         fecha: row.fecha,
         monto: Number(row.monto), // numeric viene como string desde pg
         moneda: row.moneda,
+        monedaPago: row.moneda_pago,
+        montoPagado: Number(row.monto_pagado),
+        tipoCambio: row.tipo_cambio !== null ? Number(row.tipo_cambio) : null,
         metodoPago: row.metodo_pago,
         comprobanteUrl: row.comprobante_url,
         notas: row.notas,

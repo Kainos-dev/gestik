@@ -12,7 +12,10 @@ function formatMes(mes: string) {
     return MESES_CORTOS[Number(mm) - 1];
 }
 
-const COLOR_POR_MONEDA = { ARS: 'hsl(0 72% 51%)', USD: 'hsl(0 72% 71%)' } as const;
+// Gris (no rojo): el rojo ya está tomado por "Vencido"/deuda en los badges
+// de estado (ver ESTADO_STYLES en lib/constants.ts) — usarlo acá también
+// confundiría "gasto" con "atrasado". Gris claro para ARS, gris medio para USD.
+const COLOR_POR_MONEDA = { ARS: 'oklch(0.632 0.006 106.6)', USD: 'oklch(0.408 0.005 106.6)' } as const;
 
 // Un solo eje de $ no tiene sentido cuando mezcla ARS y USD, así que cada
 // moneda se dibuja como su propia serie (barra), formateada con su símbolo.

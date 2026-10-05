@@ -15,10 +15,16 @@ export const PagoSchema = z.object({
     clienteId: z.string().min(1, 'Seleccioná un cliente'),
     servicioId: optionalString(50),
     fecha: z.coerce.date(),
-    monto: z.coerce.number().positive('El monto debe ser mayor a 0'),
-    // Solo se usa cuando el pago NO está asociado a un servicio: si hay
-    // servicioId, el server action ignora esto y usa la moneda del servicio.
-    moneda: z.enum(MONEDAS),
+    // Lo que el cliente efectivamente pagó. Si hay un servicio asociado y
+    // paga en una moneda distinta a la del servicio, el server action lo
+    // convierte con tipoCambio y acredita el cargo en la moneda del
+    // servicio — mismo patrón que ReposicionDeudaSchema en deudas/schema.ts.
+    montoPagado: z.coerce.number().positive('El monto debe ser mayor a 0'),
+    monedaPago: z.enum(MONEDAS),
+    // Obligatorio sólo cuando monedaPago difiere de la moneda del servicio
+    // asociado — el schema no conoce el servicio, esa validación vive en
+    // el server action (ver resolverConversion en pagos/actions.ts).
+    tipoCambio: z.coerce.number().positive().optional(),
     metodoPago: z.enum(METODOS_PAGO),
     comprobanteUrl: z.preprocess(
         (val) => (val === '' ? undefined : val),

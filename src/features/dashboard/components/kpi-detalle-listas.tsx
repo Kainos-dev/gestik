@@ -1,5 +1,5 @@
 // src/features/dashboard/components/kpi-detalle-listas.tsx
-import { Cargo } from '@/features/cargos/types';
+import { CargoFacturadoMes } from '../queries';
 import { calcularEstadoCargo } from '@/features/cargos/services';
 import { SaldoCliente } from '@/features/cargos/queries';
 import { Pago } from '@/features/pagos/types';
@@ -22,7 +22,7 @@ function Cliente({ color, nombre }: { color?: string; nombre?: string }) {
     );
 }
 
-export function DetalleFacturado({ cargos }: { cargos: Cargo[] }) {
+export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
     if (cargos.length === 0) return <Vacio texto="No hay cargos este mes." />;
 
     return (
@@ -33,7 +33,7 @@ export function DetalleFacturado({ cargos }: { cargos: Cargo[] }) {
                     <th className="pb-2 font-medium">Servicio</th>
                     <th className="pb-2 font-medium">Vence</th>
                     <th className="pb-2 font-medium">Estado</th>
-                    <th className="pb-2 font-medium text-right">Monto</th>
+                    <th className="pb-2 font-medium text-right">Entra este mes</th>
                 </tr>
             </thead>
             <tbody>
@@ -49,7 +49,15 @@ export function DetalleFacturado({ cargos }: { cargos: Cargo[] }) {
                         <td className="py-2">
                             <StatusBadge value={calcularEstadoCargo(c.monto, c.montoCubierto, c.vencimiento)} />
                         </td>
-                        <td className="py-2 text-right">{formatCurrency(c.monto, c.moneda)}</td>
+                        <td className="py-2 text-right">
+                            {formatCurrency(c.contribucionMes, c.moneda)}
+                            {c.montoCubiertoAntesDelMes > 0 && (
+                                <p className="text-xs font-normal text-muted-foreground">
+                                    de {formatCurrency(c.monto, c.moneda)} — ya se cobró{' '}
+                                    {formatCurrency(c.montoCubiertoAntesDelMes, c.moneda)} antes de este mes
+                                </p>
+                            )}
+                        </td>
                     </tr>
                 ))}
             </tbody>
@@ -88,16 +96,16 @@ export function DetalleCobrado({ pagos }: { pagos: Pago[] }) {
     );
 }
 
-export function DetallePendiente({ saldos }: { saldos: SaldoCliente[] }) {
-    if (saldos.length === 0) return <Vacio texto="No hay pagos pendientes." />;
+export function DetalleVencido({ saldos }: { saldos: SaldoCliente[] }) {
+    if (saldos.length === 0) return <Vacio texto="Ningún cliente tiene deuda vencida. 🎉" />;
 
     return (
         <table className="w-full text-sm">
             <thead>
                 <tr className="text-left text-muted-foreground border-b">
                     <th className="pb-2 font-medium">Cliente</th>
-                    <th className="pb-2 font-medium">Cargos</th>
-                    <th className="pb-2 font-medium text-right">Saldo pendiente</th>
+                    <th className="pb-2 font-medium">Cargos vencidos</th>
+                    <th className="pb-2 font-medium text-right">Saldo vencido</th>
                 </tr>
             </thead>
             <tbody>

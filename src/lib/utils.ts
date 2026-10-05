@@ -20,3 +20,18 @@ export function formatDate(date: Date | string): string {
 export function formatDateLocal(date: Date | string): string {
     return new Date(date).toLocaleDateString('es-AR');
 }
+
+// Para pasar una fecha "elegida" (no un timestamp real) como parámetro de una
+// query (ej. `$1::date`): node-pg serializa un objeto Date de JS usando sus
+// getters LOCALES (no UTC) — un valor como medianoche UTC del 1º del mes
+// (típico resultado de un date_trunc('month', ...)) en una timezone negativa
+// (ej. Argentina, UTC-3) se relee del lado de Postgres como el día anterior,
+// corriendo el mes para atrás. Convertir a un string "YYYY-MM-DD" con los
+// getters UTC antes de bindearlo evita por completo esa reinterpretación
+// (Postgres lo parsea literal, sin ninguna conversión de por medio).
+export function dateToSqlDateString(date: Date): string {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}

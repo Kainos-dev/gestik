@@ -4,8 +4,9 @@
 import { useTransition } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
+import { Trash2 } from 'lucide-react';
 import { GastoFijo } from '../types';
-import { registrarGastoDelMes } from '../actions';
+import { registrarGastoDelMes, eliminarGastoFijo } from '../actions';
 import { calcularEstadoPagoGastoFijo } from '../services';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -44,6 +45,37 @@ function AccionRegistrar({ gastoFijo }: { gastoFijo: GastoFijo }) {
             }}
         >
             Registrar del mes
+        </Button>
+    );
+}
+
+function AccionEliminar({ gastoFijo }: { gastoFijo: GastoFijo }) {
+    const [isPending, startTransition] = useTransition();
+
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Eliminar gasto fijo"
+            disabled={isPending}
+            onClick={() => {
+                const confirmado = window.confirm(
+                    `¿Eliminar "${gastoFijo.nombre}" de Gastos Fijos?\n\nNo se va a volver a generar automáticamente. Los gastos que ya se registraron a partir de él NO se borran: quedan como gastos sueltos en "Registro de Gastos".`,
+                );
+                if (!confirmado) return;
+
+                startTransition(async () => {
+                    try {
+                        await eliminarGastoFijo(gastoFijo.id);
+                        toast.success('Gasto fijo eliminado');
+                    } catch (error) {
+                        toast.error('Ocurrió un error al eliminar el gasto fijo');
+                        console.error(error);
+                    }
+                });
+            }}
+        >
+            <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
     );
 }
@@ -91,6 +123,7 @@ const columns: ColumnDef<GastoFijo>[] = [
             <div className="flex items-center justify-end gap-1">
                 <EditarGastoFijoDialog gastoFijo={row.original} />
                 <AccionRegistrar gastoFijo={row.original} />
+                <AccionEliminar gastoFijo={row.original} />
             </div>
         ),
     },

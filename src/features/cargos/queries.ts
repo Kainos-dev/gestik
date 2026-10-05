@@ -89,3 +89,60 @@ export async function getSaldoPorCliente(): Promise<SaldoCliente[]> {
         cantidadCargos: Number(r.cantidad_cargos),
     }));
 }
+
+// Mismo resultado que getSaldoPorCliente, pero sólo contando cargos ya
+// VENCIDOS (vencimiento < hoy) que todavía no se cubrieron del todo — a
+// diferencia de getSaldoPorCliente, acá no alcanza con "total cargos del
+// cliente menos total pagado": un pago puede estar cubriendo un cargo
+// FUTURO (no vencido todavía) mientras uno viejo sigue sin cobrarse, así
+// que hay que aplicar el mismo waterfall oldest-period-first de getCargos
+// para saber cuánto quedó sin cubrir cargo por cargo, y recién ahí filtrar
+// por vencimiento y sumar por cliente.
+export async function getSaldoVencidoPorCliente(): Promise<SaldoCliente[]> {
+    const { rows } = await pool.query(
+        `WITH pagos_por_servicio AS (
+       SELECT servicio_id, SUM(monto) AS total_pagado
+       FROM pagos
+       WHERE servicio_id IS NOT NULL
+       GROUP BY servicio_id
+     ),
+     acumulado AS (
+       SELECT
+         c.*,
+         SUM(c.monto) OVER (
+           PARTITION BY c.servicio_id
+           ORDER BY c.periodo, c.created_at, c.id
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+         ) AS acumulado_hasta_este,
+         COALESCE(pps.total_pagado, 0) AS total_pagado_servicio
+       FROM cargos c
+       LEFT JOIN pagos_por_servicio pps ON pps.servicio_id = c.servicio_id
+     ),
+     pendiente_por_cargo AS (
+       SELECT
+         a.cliente_id, a.moneda,
+         a.monto - LEAST(a.monto, GREATEST(0, a.total_pagado_servicio - (a.acumulado_hasta_este - a.monto))) AS pendiente
+       FROM acumulado a
+       WHERE a.vencimiento < CURRENT_DATE
+     )
+     SELECT
+       c.id AS cliente_id,
+       c.nombre AS cliente_nombre,
+       c.color AS cliente_color,
+       p.moneda,
+       SUM(p.pendiente) AS saldo,
+       COUNT(*) FILTER (WHERE p.pendiente > 0) AS cantidad_cargos
+     FROM pendiente_por_cargo p
+     JOIN clientes c ON c.id = p.cliente_id
+     GROUP BY c.id, c.nombre, c.color, p.moneda
+     HAVING SUM(p.pendiente) > 0`
+    );
+    return rows.map((r) => ({
+        clienteId: r.cliente_id,
+        clienteNombre: r.cliente_nombre,
+        clienteColor: r.cliente_color,
+        moneda: r.moneda,
+        saldo: Number(r.saldo),
+        cantidadCargos: Number(r.cantidad_cargos),
+    }));
+}

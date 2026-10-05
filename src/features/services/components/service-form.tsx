@@ -144,7 +144,7 @@ export function ServicioForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="tipo">Tipo de servicio *</Label>
           <Controller
@@ -153,7 +153,11 @@ export function ServicioForm({
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger id="tipo">
-                  <SelectValue />
+                  {/* Render-prop: sin esto, el valor "cerrado" muestra el
+                      código crudo del enum (ej. "DESARROLLO_WEB") en vez de
+                      la etiqueta — mismo bug ya encontrado y arreglado en
+                      Modalidad de pago (clients/components/client-form.tsx). */}
+                  <SelectValue>{(value: string) => TIPO_SERVICIO_LABELS[value] ?? value}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TIPOS_SERVICIO.map((tipo) => (
@@ -175,7 +179,7 @@ export function ServicioForm({
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger id="frecuencia">
-                  <SelectValue />
+                  <SelectValue>{(value: string) => FRECUENCIA_LABELS[value] ?? value}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {FRECUENCIAS_SERVICIO.map((frecuencia) => (
@@ -205,7 +209,7 @@ export function ServicioForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="precio">Precio *</Label>
           <div className="flex gap-2">
@@ -264,7 +268,9 @@ export function ServicioForm({
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger id="estado">
-                  <SelectValue placeholder="Seleccionar estado" />
+                  <SelectValue placeholder="Seleccionar estado">
+                    {(value: string) => ESTADO_STYLES[value]?.label ?? value}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {ESTADOS_SERVICIO.map((estado) => (
