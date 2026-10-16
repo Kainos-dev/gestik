@@ -5,6 +5,7 @@ import { pool } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { GastoFijoSchema, GastoFijoInput, GastoSchema, GastoInput } from './schema';
 import { calcularProximoVencimiento } from './services';
+import { dateToSqlDateString } from '@/lib/utils';
 
 export async function crearGastoFijo(data: GastoFijoInput) {
     const parsed = GastoFijoSchema.parse(data);
@@ -30,7 +31,27 @@ export async function crearGastoFijo(data: GastoFijoInput) {
 
 export async function editarGastoFijo(id: string, data: GastoFijoInput) {
     const parsed = GastoFijoSchema.parse(data);
-    const proximoVencimiento = calcularProximoVencimiento(parsed.fechaInicio, parsed.frecuencia);
+
+    const { rows } = await pool.query(`SELECT frecuencia, fecha_inicio, proximo_vencimiento FROM gastos_fijos WHERE id = $1`, [
+        id,
+    ]);
+    const actual = rows[0];
+
+    // Mismo criterio que editarServicio (services/actions.ts): sólo se
+    // recalcula el próximo vencimiento si cambió lo que determina el ciclo
+    // (frecuencia o fecha de inicio). Si sólo se edita monto/nombre/etc., el
+    // próximo vencimiento —que fue avanzando con cada gasto generado— queda
+    // intacto. Antes cada edición lo pisaba con "fecha_inicio + 1 ciclo", y el
+    // cron renovar-gastos-fijos volvía a generar gastos de ciclos ya pagados
+    // (gastos duplicados). Se compara por día calendario, no por instante.
+    const cambioCiclo =
+        !actual ||
+        parsed.frecuencia !== actual.frecuencia ||
+        dateToSqlDateString(parsed.fechaInicio) !== dateToSqlDateString(new Date(actual.fecha_inicio));
+
+    const proximoVencimiento = cambioCiclo
+        ? calcularProximoVencimiento(parsed.fechaInicio, parsed.frecuencia)
+        : actual.proximo_vencimiento;
 
     await pool.query(
         `UPDATE gastos_fijos

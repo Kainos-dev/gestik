@@ -47,7 +47,7 @@ export default async function GestionPage() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-semibold">Balance mensual</h1>
+            <h1 className="text-2xl font-semibold">Gestión General</h1>
 
             {balancePorMoneda.map((b) => (
                 <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-4 gap-4">

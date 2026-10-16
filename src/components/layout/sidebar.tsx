@@ -8,12 +8,12 @@ import { cn } from '@/lib/utils';
 import { useMobileNav } from './mobile-nav-context';
 
 const NAV_ITEMS = [
-    { href: '/dashboard', label: 'Gestión', icon: LayoutDashboard },
+    { href: '/dashboard', label: 'Balance Mensual', icon: LayoutDashboard },
     { href: '/clients', label: 'Clientes', icon: Users },
     { href: '/services', label: 'Servicios', icon: Wrench },
     { href: '/pagos', label: 'Cobros', icon: CreditCard },
     { href: '/gastos', label: 'Gastos', icon: Receipt },
-    { href: '/gestion', label: 'Balance mensual', icon: TrendingUp },
+    { href: '/gestion', label: 'Gestión General', icon: TrendingUp },
 ];
 
 export function Sidebar() {

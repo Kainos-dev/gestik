@@ -1,7 +1,13 @@
 // src/features/balance-mensual/queries.ts
 import { pool } from '@/lib/db';
 import { getCargosFacturadoMes } from '@/features/dashboard/queries';
-import { RepartoMensual, mapRepartoMensual, MesPendienteDeReparto } from './types';
+import {
+    RepartoMensual,
+    mapRepartoMensual,
+    MesPendienteDeReparto,
+    MovimientoSaldo,
+    mapMovimientoSaldo,
+} from './types';
 
 // Suma el Facturado de un mes (ver getCargosFacturadoMes en
 // dashboard/queries.ts) agrupado por moneda — es la base sobre la que se
@@ -57,37 +63,126 @@ export async function getAhorroAcumulado(): Promise<number> {
     return Number(rows[0].total);
 }
 
-// Aproximado de lo disponible en Mercado Pago: lo que se fue apartando mes
-// a mes para la cuenta de gastos fijos y deudas (sólo la porción en ARS,
-// que es la que efectivamente vive en MP) menos lo que realmente se gastó
-// en gastos fijos y en reposiciones de deuda pagadas en pesos, desde que
-// arrancó el primer reparto (no cuenta gasto viejo de antes de usar esto,
-// porque nunca se apartó plata para esos gastos acá). Puede dar negativo
-// si se gastó más de lo que había en la bolsa — es sólo un aproximado, tal
-// como pide el domain model.
-export async function getDisponibleEnMP(): Promise<number | null> {
+// "Plata disponible en cuenta" (aproximado): lo único que entra a la cuenta
+// es la porción de gastos fijos y deudas (30%) de cada reparto — sueldos y
+// ahorro no pasan por ahí. Sale lo que se pagó en gastos FIJOS (los genera
+// solos el cron renovar-gastos-fijos al vencer, o "Registrar gasto del
+// mes") y en reposiciones de deuda, desde que arrancó el primer reparto (no
+// cuenta gasto viejo de antes de usar esto, porque nunca se apartó plata
+// para esos gastos acá). Los gastos sueltos (gasto_fijo_id NULL: una
+// cámara, una notebook) no se descuentan, mismo criterio que el balance de
+// Gestión General. Separado por moneda, sin convertir: las reposiciones se
+// agrupan por la moneda en la que se pagaron (moneda_pago), que es la plata
+// que efectivamente salió. Puede dar negativo si se gastó más de lo que se
+// apartó — es sólo un aproximado.
+export interface DisponibleEnCuenta {
+    ars: number;
+    usd: number;
+}
+
+export async function getDisponibleEnCuenta(): Promise<DisponibleEnCuenta | null> {
     const { rows } = await pool.query(
         `WITH primer_reparto AS (
        SELECT MIN(mes) AS desde FROM repartos_mensuales
      ),
      apartado AS (
-       SELECT COALESCE(SUM(gastos_deudas_ars), 0) AS total FROM repartos_mensuales
+       SELECT COALESCE(SUM(gastos_deudas_ars), 0) AS ars, COALESCE(SUM(gastos_deudas_usd), 0) AS usd
+       FROM repartos_mensuales
      ),
      gastos_pagados AS (
-       SELECT COALESCE(SUM(g.monto), 0) AS total
+       SELECT
+         COALESCE(SUM(g.monto) FILTER (WHERE g.moneda = 'ARS'), 0) AS ars,
+         COALESCE(SUM(g.monto) FILTER (WHERE g.moneda = 'USD'), 0) AS usd
        FROM gastos g, primer_reparto p
-       WHERE g.moneda = 'ARS' AND g.fecha >= p.desde
+       WHERE g.gasto_fijo_id IS NOT NULL AND g.fecha >= p.desde
      ),
      reposiciones_pagadas AS (
-       SELECT COALESCE(SUM(r.monto_pagado), 0) AS total
+       SELECT
+         COALESCE(SUM(r.monto_pagado) FILTER (WHERE r.moneda_pago = 'ARS'), 0) AS ars,
+         COALESCE(SUM(r.monto_pagado) FILTER (WHERE r.moneda_pago = 'USD'), 0) AS usd
        FROM reposiciones_deuda r, primer_reparto p
-       WHERE r.moneda_pago = 'ARS' AND r.fecha >= p.desde
+       WHERE r.fecha >= p.desde
      )
      SELECT
        (SELECT desde FROM primer_reparto) AS desde,
-       (SELECT total FROM apartado) - (SELECT total FROM gastos_pagados) - (SELECT total FROM reposiciones_pagadas) AS disponible`
+       a.ars - g.ars - r.ars AS ars,
+       a.usd - g.usd - r.usd AS usd
+     FROM apartado a, gastos_pagados g, reposiciones_pagadas r`
     );
     const row = rows[0];
     if (!row || row.desde === null) return null; // todavía no hay ningún reparto generado
-    return Number(row.disponible);
+    return { ars: Number(row.ars), usd: Number(row.usd) };
+}
+
+// Cuántos renglones muestra el historial de cada saldo (pedido del equipo).
+const MAX_MOVIMIENTOS_SALDO = 10;
+
+// Historial de "Plata disponible en cuenta": exactamente los mismos
+// movimientos que suma/resta getDisponibleEnCuenta, cada uno con el saldo en
+// que dejó la cuenta (acumulado por moneda sobre TODA la historia, no sólo
+// sobre los últimos 10 — así el renglón más nuevo coincide con la tarjeta).
+// El 30% de cada reparto se fecha el 1º del mes siguiente, que es cuando se
+// genera (ver renovar-repartos-mensuales); a igual fecha, primero entra la
+// plata y después sale. Más nuevo primero.
+export async function getMovimientosCuenta(): Promise<MovimientoSaldo[]> {
+    const { rows } = await pool.query(
+        `WITH primer_reparto AS (
+       SELECT MIN(mes) AS desde FROM repartos_mensuales
+     ),
+     movimientos AS (
+       SELECT r.id || '-ARS' AS id, 'REPARTO' AS tipo, (r.mes + INTERVAL '1 month')::date AS fecha,
+              NULL::text AS nombre, r.mes AS mes_reparto, 'ARS' AS moneda, r.gastos_deudas_ars AS monto,
+              0 AS orden, r.created_at
+       FROM repartos_mensuales r
+       UNION ALL
+       SELECT r.id || '-USD', 'REPARTO', (r.mes + INTERVAL '1 month')::date,
+              NULL, r.mes, 'USD', r.gastos_deudas_usd, 0, r.created_at
+       FROM repartos_mensuales r
+       WHERE r.gastos_deudas_usd <> 0
+       UNION ALL
+       SELECT g.id, 'GASTO_FIJO', g.fecha::date, COALESCE(gf.nombre, g.descripcion), NULL,
+              g.moneda::text, -g.monto, 1, g.created_at
+       FROM gastos g
+       JOIN primer_reparto p ON g.fecha >= p.desde
+       LEFT JOIN gastos_fijos gf ON gf.id = g.gasto_fijo_id
+       WHERE g.gasto_fijo_id IS NOT NULL
+       UNION ALL
+       SELECT rd.id, 'REPOSICION_DEUDA', rd.fecha::date, d.descripcion || ' (' || i.nombre || ')', NULL,
+              rd.moneda_pago::text, -rd.monto_pagado, 1, rd.created_at
+       FROM reposiciones_deuda rd
+       JOIN primer_reparto p ON rd.fecha >= p.desde
+       JOIN deudas d ON d.id = rd.deuda_id
+       JOIN integrantes i ON i.id = d.integrante_id
+     ),
+     con_saldo AS (
+       SELECT *,
+              SUM(monto) OVER (
+                PARTITION BY moneda
+                ORDER BY fecha, orden, created_at, id
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+              ) AS saldo
+       FROM movimientos
+     )
+     SELECT * FROM con_saldo
+     ORDER BY fecha DESC, orden DESC, created_at DESC, id DESC
+     LIMIT $1`,
+        [MAX_MOVIMIENTOS_SALDO]
+    );
+    return rows.map(mapMovimientoSaldo);
+}
+
+// Historial de "Caja de ahorro": por ahora sólo entra plata (el 40% de cada
+// reparto, ya en pesos) — no hay retiros registrados. Mismo criterio de
+// fecha y de saldo acumulado que getMovimientosCuenta.
+export async function getMovimientosAhorro(): Promise<MovimientoSaldo[]> {
+    const { rows } = await pool.query(
+        `SELECT id, 'REPARTO' AS tipo, (mes + INTERVAL '1 month')::date AS fecha, NULL AS nombre,
+            mes AS mes_reparto, 'ARS' AS moneda, ahorro_mes_ars AS monto,
+            SUM(ahorro_mes_ars) OVER (ORDER BY mes ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS saldo
+     FROM repartos_mensuales
+     ORDER BY mes DESC
+     LIMIT $1`,
+        [MAX_MOVIMIENTOS_SALDO]
+    );
+    return rows.map(mapMovimientoSaldo);
 }

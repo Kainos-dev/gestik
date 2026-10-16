@@ -29,6 +29,9 @@ export interface CargoFacturadoMes {
     montoCubierto: number;
     montoCubiertoAntesDelMes: number;
     contribucionMes: number;
+    // true = el cargo todavía no existe, se proyecta a partir del servicio
+    // (ver getCargosProyectadosMes) — no tiene id real ni estado de pago.
+    proyectado: boolean;
 }
 
 // "mes" es cualquier fecha dentro del mes que se quiere consultar (por
@@ -87,6 +90,46 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
             montoCubierto: Number(r.monto_cubierto),
             montoCubiertoAntesDelMes,
             contribucionMes: monto - montoCubiertoAntesDelMes,
+            proyectado: false,
+        };
+    });
+}
+
+// Cargos que van a vencer en "mes" pero todavía no se generaron. Sólo pasa
+// con clientes ANTICIPADO: su cargo vence al arrancar su propio periodo
+// (ver calcularVencimientoCargo en services/services.ts), y ese cargo recién
+// lo crea la renovación el mismo día que llega "proximo_vencimiento". Los
+// POSPAGO no hace falta proyectarlos — su cargo que vence el mes que viene
+// ya existe (se generó al arrancar el periodo actual). Se usa para "Dinero
+// que va a ingresar" el mes siguiente, sumado a getCargosFacturadoMes.
+export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturadoMes[]> {
+    const { rows } = await pool.query(
+        `SELECT s.id, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda,
+            c.nombre AS cliente_nombre, c.color AS cliente_color
+     FROM servicios s
+     JOIN clientes c ON c.id = s.cliente_id
+     WHERE s.estado = 'ACTIVO'
+       AND s.frecuencia != 'UNICO'
+       AND c.modalidad_pago = 'ANTICIPADO'
+       AND date_trunc('month', s.proximo_vencimiento) = date_trunc('month', $1::date)
+     ORDER BY c.nombre`,
+        [dateToSqlDateString(mes)]
+    );
+    return rows.map((r) => {
+        const monto = Number(r.precio);
+        return {
+            id: `proyectado-${r.id}`,
+            clienteNombre: r.cliente_nombre,
+            clienteColor: r.cliente_color,
+            servicioTipo: r.tipo,
+            servicioNombrePersonalizado: r.nombre_personalizado,
+            vencimiento: r.proximo_vencimiento,
+            moneda: r.moneda,
+            monto,
+            montoCubierto: 0,
+            montoCubiertoAntesDelMes: 0,
+            contribucionMes: monto,
+            proyectado: true,
         };
     });
 }

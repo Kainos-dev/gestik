@@ -23,7 +23,7 @@ function Cliente({ color, nombre }: { color?: string; nombre?: string }) {
 }
 
 export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
-    if (cargos.length === 0) return <Vacio texto="No hay cargos este mes." />;
+    if (cargos.length === 0) return <Vacio texto="No hay cargos que venzan en este mes." />;
 
     return (
         <table className="w-full text-sm">
@@ -33,7 +33,7 @@ export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
                     <th className="pb-2 font-medium">Servicio</th>
                     <th className="pb-2 font-medium">Vence</th>
                     <th className="pb-2 font-medium">Estado</th>
-                    <th className="pb-2 font-medium text-right">Entra este mes</th>
+                    <th className="pb-2 font-medium text-right">Entra en el mes</th>
                 </tr>
             </thead>
             <tbody>
@@ -47,14 +47,18 @@ export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
                         </td>
                         <td className="py-2">{formatDate(c.vencimiento)}</td>
                         <td className="py-2">
-                            <StatusBadge value={calcularEstadoCargo(c.monto, c.montoCubierto, c.vencimiento)} />
+                            {c.proyectado ? (
+                                <span className="text-xs text-muted-foreground">Se genera ese día</span>
+                            ) : (
+                                <StatusBadge value={calcularEstadoCargo(c.monto, c.montoCubierto, c.vencimiento)} />
+                            )}
                         </td>
                         <td className="py-2 text-right">
                             {formatCurrency(c.contribucionMes, c.moneda)}
                             {c.montoCubiertoAntesDelMes > 0 && (
                                 <p className="text-xs font-normal text-muted-foreground">
                                     de {formatCurrency(c.monto, c.moneda)} — ya se cobró{' '}
-                                    {formatCurrency(c.montoCubiertoAntesDelMes, c.moneda)} antes de este mes
+                                    {formatCurrency(c.montoCubiertoAntesDelMes, c.moneda)} antes de ese mes
                                 </p>
                             )}
                         </td>
