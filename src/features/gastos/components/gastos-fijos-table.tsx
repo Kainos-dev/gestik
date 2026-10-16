@@ -14,7 +14,7 @@ import { EditarGastoFijoDialog } from './edit-gasto-fijo-dialog';
 import { Button } from '@/components/ui/button';
 import { CATEGORIA_GASTO_LABELS, FRECUENCIA_GASTO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
-import { formatCurrency } from '@/lib/moneda';
+import { MontoConMoneda } from '@/components/shared/monto-con-moneda';
 
 function AccionRegistrar({ gastoFijo }: { gastoFijo: GastoFijo }) {
     const [isPending, startTransition] = useTransition();
@@ -90,7 +90,7 @@ const columns: ColumnDef<GastoFijo>[] = [
     {
         accessorKey: 'monto',
         header: 'Monto',
-        cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
+        cell: ({ row }) => <MontoConMoneda monto={row.original.monto} moneda={row.original.moneda} />,
     },
     {
         accessorKey: 'frecuencia',

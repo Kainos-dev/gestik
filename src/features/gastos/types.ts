@@ -1,5 +1,8 @@
 // src/features/gastos/types.ts
 import { Moneda } from '@/lib/moneda';
+import { ORIGENES_FONDOS } from './schema';
+
+export type OrigenFondos = (typeof ORIGENES_FONDOS)[number];
 
 export type CategoriaGasto =
     | 'SOFTWARE'
@@ -58,6 +61,9 @@ export interface Gasto {
     monto: number;
     moneda: Moneda;
     fecha: Date;
+    // null sólo en gastos sueltos cargados antes de que existiera el campo
+    // (no se descuentan de ninguna cuenta) — ver migración agregar-origen-fondos-a-gastos.
+    origenFondos: OrigenFondos | null;
     notas: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -73,6 +79,7 @@ export function mapGasto(row: any): Gasto {
         monto: Number(row.monto),
         moneda: row.moneda,
         fecha: row.fecha,
+        origenFondos: row.origen_fondos,
         notas: row.notas,
         createdAt: row.created_at,
         updatedAt: row.updated_at,

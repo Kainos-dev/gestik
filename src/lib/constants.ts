@@ -106,3 +106,7 @@ export const CATEGORIA_GASTO_LABELS: Record<string, string> = {
   OFICINA: 'Oficina',
   OTRO: 'Otro',
 };
+export const ORIGEN_FONDOS_LABELS: Record<string, string> = {
+  CUENTA: 'Cuenta',
+  CAJA_AHORRO: 'Caja de ahorro',
+};

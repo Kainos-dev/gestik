@@ -52,7 +52,7 @@ export interface MesPendienteDeReparto {
 // "monto" va con signo (+ entra, - sale) y "saldo" es cómo quedó la cuenta
 // en esa moneda justo después de este movimiento. Los REPARTO no traen
 // nombre: se arma en el componente a partir de "mesReparto".
-export type TipoMovimientoSaldo = 'REPARTO' | 'GASTO_FIJO' | 'REPOSICION_DEUDA';
+export type TipoMovimientoSaldo = 'REPARTO' | 'GASTO_FIJO' | 'GASTO' | 'REPOSICION_DEUDA';
 
 export interface MovimientoSaldo {
     id: string;

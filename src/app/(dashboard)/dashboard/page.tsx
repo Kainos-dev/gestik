@@ -7,8 +7,9 @@ import {
     getKpis,
 } from '@/features/dashboard/queries';
 import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card';
-import { DetalleCobrado, DetalleFacturado, DetalleVencido } from '@/features/dashboard/components/kpi-detalle-listas';
+import { DetalleFacturado } from '@/features/dashboard/components/kpi-detalle-listas';
 import {
+    getCajaDeAhorro,
     getDisponibleEnCuenta,
     getMovimientosAhorro,
     getMovimientosCuenta,
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
         mesesPendientesDeReparto,
         repartos,
         disponibleEnCuenta,
+        cajaDeAhorro,
         movimientosCuenta,
         movimientosAhorro,
     ] = await Promise.all([
@@ -58,6 +60,7 @@ export default async function DashboardPage() {
         getMesesPendientesDeReparto(),
         getRepartosMensuales(),
         getDisponibleEnCuenta(),
+        getCajaDeAhorro(),
         getMovimientosCuenta(),
         getMovimientosAhorro(),
     ]);
@@ -129,40 +132,11 @@ export default async function DashboardPage() {
 
             <SaldosCuentaYAhorro
                 disponible={disponibleEnCuenta}
+                cajaDeAhorro={cajaDeAhorro}
                 repartos={repartos}
                 movimientosCuenta={movimientosCuenta}
                 movimientosAhorro={movimientosAhorro}
             />
-
-            <div className="space-y-4 pt-2">
-                <h2 className="text-lg font-medium">Otros indicadores</h2>
-                {kpis.porMoneda.map((k) => (
-                    <div key={k.moneda} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <KpiDetalleCard
-                            label={
-                                <>
-                                    Cobrado del mes ({k.moneda})
-                                    <br />
-                                    <span className="italic font-normal text-muted-foreground">
-                                        {nombreMes(mesActual)}
-                                    </span>
-                                </>
-                            }
-                            value={formatCurrency(k.totalCobradoMes, k.moneda)}
-                            descripcion="Pagos recibidos este mes."
-                        >
-                            <DetalleCobrado pagos={detalle.pagosMes.filter((p) => p.moneda === k.moneda)} />
-                        </KpiDetalleCard>
-                        <KpiDetalleCard
-                            label={`Pagos que no realizaron los clientes (${k.moneda})`}
-                            value={formatCurrency(k.totalVencido, k.moneda)}
-                            descripcion="Cargos cuyo vencimiento ya pasó y todavía no se cubrieron del todo."
-                        >
-                            <DetalleVencido saldos={detalle.saldosVencidos.filter((s) => s.moneda === k.moneda)} />
-                        </KpiDetalleCard>
-                    </div>
-                ))}
-            </div>
         </div>
     );
 }

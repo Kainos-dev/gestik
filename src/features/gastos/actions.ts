@@ -5,6 +5,7 @@ import { pool } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { GastoFijoSchema, GastoFijoInput, GastoSchema, GastoInput } from './schema';
 import { calcularProximoVencimiento } from './services';
+import { OrigenFondos } from './types';
 import { dateToSqlDateString } from '@/lib/utils';
 
 export async function crearGastoFijo(data: GastoFijoInput) {
@@ -84,8 +85,9 @@ async function renovarUnCicloGasto(gastoFijo: any): Promise<Date> {
     const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), gastoFijo.frecuencia);
 
     await pool.query(
-        `INSERT INTO gastos (gasto_fijo_id, categoria, descripcion, monto, moneda, fecha)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+        // Un gasto fijo (Adobe, hosting…) siempre se paga desde la cuenta.
+        `INSERT INTO gastos (gasto_fijo_id, categoria, descripcion, monto, moneda, fecha, origen_fondos)
+     VALUES ($1, $2, $3, $4, $5, $6, 'CUENTA')`,
         [gastoFijo.id, gastoFijo.categoria, gastoFijo.nombre, gastoFijo.monto, gastoFijo.moneda, fechaBase]
     );
 
@@ -159,13 +161,23 @@ async function resolverMonedaGasto(gastoFijoId: string | undefined, monedaForm: 
     return rows[0]?.moneda ?? monedaForm;
 }
 
+// El schema ya lo valida con la moneda del formulario, pero la moneda real
+// puede venir heredada de un gasto fijo (resolverMonedaGasto) — se repite
+// acá con la moneda ya resuelta, mismo criterio que el tipoCambio de deudas.
+function validarOrigenFondos(origenFondos: OrigenFondos, moneda: 'ARS' | 'USD') {
+    if (origenFondos === 'CAJA_AHORRO' && moneda !== 'ARS') {
+        throw new Error('La caja de ahorro es en pesos: un gasto en USD tiene que salir de la cuenta');
+    }
+}
+
 export async function crearGasto(data: GastoInput) {
     const parsed = GastoSchema.parse(data);
     const moneda = await resolverMonedaGasto(parsed.gastoFijoId, parsed.moneda);
+    validarOrigenFondos(parsed.origenFondos, moneda);
 
     await pool.query(
-        `INSERT INTO gastos (gasto_fijo_id, categoria, descripcion, monto, moneda, fecha, notas)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO gastos (gasto_fijo_id, categoria, descripcion, monto, moneda, fecha, origen_fondos, notas)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
             parsed.gastoFijoId ?? null,
             parsed.categoria,
@@ -173,12 +185,14 @@ export async function crearGasto(data: GastoInput) {
             parsed.monto,
             moneda,
             parsed.fecha,
+            parsed.origenFondos,
             parsed.notas ?? null,
         ]
     );
 
     revalidatePath('/gastos');
     revalidatePath('/gestion');
+    revalidatePath('/dashboard');
 }
 
 // Elimina un gasto fijo que en realidad no se comporta como tal (ej. cuotas
@@ -198,11 +212,13 @@ export async function eliminarGastoFijo(id: string) {
 export async function editarGasto(id: string, data: GastoInput) {
     const parsed = GastoSchema.parse(data);
     const moneda = await resolverMonedaGasto(parsed.gastoFijoId, parsed.moneda);
+    validarOrigenFondos(parsed.origenFondos, moneda);
 
     await pool.query(
         `UPDATE gastos
-     SET gasto_fijo_id = $1, categoria = $2, descripcion = $3, monto = $4, moneda = $5, fecha = $6, notas = $7, updated_at = now()
-     WHERE id = $8`,
+     SET gasto_fijo_id = $1, categoria = $2, descripcion = $3, monto = $4, moneda = $5, fecha = $6,
+         origen_fondos = $7, notas = $8, updated_at = now()
+     WHERE id = $9`,
         [
             parsed.gastoFijoId ?? null,
             parsed.categoria,
@@ -210,6 +226,7 @@ export async function editarGasto(id: string, data: GastoInput) {
             parsed.monto,
             moneda,
             parsed.fecha,
+            parsed.origenFondos,
             parsed.notas ?? null,
             id,
         ]
@@ -217,4 +234,5 @@ export async function editarGasto(id: string, data: GastoInput) {
 
     revalidatePath('/gastos');
     revalidatePath('/gestion');
+    revalidatePath('/dashboard');
 }

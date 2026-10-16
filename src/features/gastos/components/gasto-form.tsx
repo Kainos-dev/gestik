@@ -7,7 +7,7 @@ import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
-import { GastoSchema, GastoInput, CATEGORIAS_GASTO } from '../schema';
+import { GastoSchema, GastoInput, CATEGORIAS_GASTO, ORIGENES_FONDOS } from '../schema';
 import { crearGasto, editarGasto } from '../actions';
 import { Gasto } from '../types';
 
@@ -22,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
+import { CATEGORIA_GASTO_LABELS, ORIGEN_FONDOS_LABELS } from '@/lib/constants';
 import { MONEDAS } from '@/lib/moneda';
 import { DatePicker } from '@/components/shared/date-picker';
 
@@ -44,6 +44,12 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
     } = useForm<GastoInput>({
         resolver: zodResolver(GastoSchema),
         defaultValues: {
+            // Se conserva el vínculo al editar un gasto generado por un gasto
+            // fijo — el form no tiene campo para esto, y sin mandarlo
+            // editarGasto lo pisaba con NULL (lo convertía en gasto suelto).
+            gastoFijoId: gasto?.gastoFijoId ?? undefined,
+            // Sin valor por defecto a propósito: hay que elegirlo sí o sí.
+            origenFondos: gasto?.origenFondos ?? undefined,
             categoria: gasto?.categoria ?? 'OTRO',
             descripcion: gasto?.descripcion ?? '',
             monto: gasto?.monto ?? 0,
@@ -122,6 +128,33 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
                     </div>
                     {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
                 </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <Label htmlFor="origenFondos">¿De dónde sale la plata? *</Label>
+                <Controller
+                    name="origenFondos"
+                    control={control}
+                    render={({ field }) => (
+                        <Select value={field.value ?? null} onValueChange={field.onChange}>
+                            <SelectTrigger id="origenFondos" className="w-full">
+                                <SelectValue placeholder="Elegir cuenta o caja de ahorro">
+                                    {(value: string | null) =>
+                                        (value && ORIGEN_FONDOS_LABELS[value]) ?? 'Elegir cuenta o caja de ahorro'
+                                    }
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {ORIGENES_FONDOS.map((origen) => (
+                                    <SelectItem key={origen} value={origen}>
+                                        {ORIGEN_FONDOS_LABELS[origen]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+                {errors.origenFondos && <p className="text-sm text-red-600">{errors.origenFondos.message}</p>}
             </div>
 
             <div className="space-y-1.5">

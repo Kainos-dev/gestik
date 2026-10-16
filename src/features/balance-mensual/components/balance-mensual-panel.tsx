@@ -152,21 +152,23 @@ function MovimientosTabla({
 const TIPO_MOVIMIENTO_LABELS: Record<MovimientoSaldo['tipo'], string> = {
     REPARTO: 'Reparto mensual',
     GASTO_FIJO: 'Gasto fijo',
+    GASTO: 'Gasto suelto',
     REPOSICION_DEUDA: 'Reposición de deuda',
 };
 
 export function SaldosCuentaYAhorro({
     disponible,
+    cajaDeAhorro,
     repartos,
     movimientosCuenta,
     movimientosAhorro,
 }: {
     disponible: DisponibleEnCuenta | null;
+    cajaDeAhorro: number | null;
     repartos: RepartoMensual[];
     movimientosCuenta: MovimientoSaldo[];
     movimientosAhorro: MovimientoSaldo[];
 }) {
-    const ahorroTotal = repartos.reduce((total, r) => total + r.ahorroMesArs, 0);
     const ultimoReparto = repartos.at(-1);
 
     return (
@@ -174,7 +176,7 @@ export function SaldosCuentaYAhorro({
             <TarjetaSaldo
                 titulo="Plata disponible en cuenta"
                 align="start"
-                explicacion={`Suma el ${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de gastos de cada reparto mensual (sueldos y ahorro no van a esta cuenta) y resta lo pagado en gastos fijos y en reposiciones de deuda desde el primer reparto. Los gastos sueltos no se descuentan. Puede dar negativo si ya se pagaban gastos o deudas antes de usar este sistema — es un aproximado, no el saldo real de la cuenta.`}
+                explicacion={`Suma el ${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de gastos de cada reparto mensual (sueldos y ahorro no van a esta cuenta) y resta los gastos pagados con la cuenta (los gastos fijos, siempre) y las reposiciones de deuda desde el primer reparto. Puede dar negativo si ya se pagaban gastos o deudas antes de usar este sistema — es un aproximado, no el saldo real de la cuenta.`}
                 detalle={<MovimientosTabla movimientos={movimientosCuenta} cuenta="CUENTA" />}
             >
                 {disponible === null ? (
@@ -187,15 +189,15 @@ export function SaldosCuentaYAhorro({
                         )}
                     </>
                 )}
-                <p className="text-sm text-muted-foreground">Baja sola cuando se paga un gasto fijo o una deuda.</p>
+                <p className="text-sm text-muted-foreground">Baja con cada gasto pagado con la cuenta y cada deuda repuesta.</p>
             </TarjetaSaldo>
             <TarjetaSaldo
                 titulo="Caja de ahorro"
                 align="end"
-                explicacion={`Suma del ${porcentaje(PORCENTAJE_AHORRO)} de ahorro de todos los repartos mensuales, en pesos (lo que se fue facturando en USD se convierte con el tipo de cambio de cada mes).`}
+                explicacion={`Suma del ${porcentaje(PORCENTAJE_AHORRO)} de ahorro de todos los repartos mensuales, en pesos (lo que se fue facturando en USD se convierte con el tipo de cambio de cada mes), menos los gastos pagados con la caja de ahorro.`}
                 detalle={<MovimientosTabla movimientos={movimientosAhorro} cuenta="AHORRO" />}
             >
-                <p className="text-4xl font-semibold">{formatCurrency(ahorroTotal, 'ARS')}</p>
+                <p className="text-4xl font-semibold">{cajaDeAhorro !== null ? formatCurrency(cajaDeAhorro, 'ARS') : '—'}</p>
                 <p className="text-sm text-muted-foreground">
                     {ultimoReparto
                         ? `Último aporte: ${formatCurrency(ultimoReparto.ahorroMesArs, 'ARS')} (${formatMesLargo(ultimoReparto.mes)}).`

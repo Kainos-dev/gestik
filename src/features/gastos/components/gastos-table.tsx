@@ -5,9 +5,9 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Gasto } from '../types';
 import { DataTable } from '@/components/shared/data-table';
 import { EditarGastoDialog } from './edit-gasto-dialog';
-import { CATEGORIA_GASTO_LABELS } from '@/lib/constants';
+import { CATEGORIA_GASTO_LABELS, ORIGEN_FONDOS_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
-import { formatCurrency } from '@/lib/moneda';
+import { MontoConMoneda } from '@/components/shared/monto-con-moneda';
 
 const columns: ColumnDef<Gasto>[] = [
     { accessorKey: 'fecha', header: 'Fecha', cell: ({ row }) => formatDate(row.original.fecha) },
@@ -20,7 +20,12 @@ const columns: ColumnDef<Gasto>[] = [
     {
         accessorKey: 'monto',
         header: 'Monto',
-        cell: ({ row }) => formatCurrency(row.original.monto, row.original.moneda),
+        cell: ({ row }) => <MontoConMoneda monto={row.original.monto} moneda={row.original.moneda} />,
+    },
+    {
+        accessorKey: 'origenFondos',
+        header: 'Pagado con',
+        cell: ({ row }) => (row.original.origenFondos ? ORIGEN_FONDOS_LABELS[row.original.origenFondos] : '—'),
     },
     {
         accessorKey: 'gastoFijoNombre',

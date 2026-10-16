@@ -20,6 +20,9 @@ export const CATEGORIAS_GASTO = [
 
 export const FRECUENCIAS_GASTO = ['MENSUAL', 'MENSUAL_30_DIAS', 'ANUAL'] as const;
 export const ESTADOS_GASTO_FIJO = ['ACTIVO', 'PAUSADO', 'FINALIZADO'] as const;
+// De dónde sale la plata de un gasto — refleja el enum "origen_fondos" de
+// Postgres (migración agregar-origen-fondos-a-gastos).
+export const ORIGENES_FONDOS = ['CUENTA', 'CAJA_AHORRO'] as const;
 
 // Gasto fijo: el compromiso recurrente (Adobe, hosting, etc.)
 export const GastoFijoSchema = z.object({
@@ -45,7 +48,15 @@ export const GastoSchema = z.object({
     // la moneda del gasto fijo (igual que pagos hereda la del servicio).
     moneda: z.enum(MONEDAS),
     fecha: z.coerce.date(),
+    // Obligatorio: sin elegirlo no se puede cargar el gasto. La caja de
+    // ahorro es sólo en pesos (ver ahorro_mes_ars), así que un gasto en USD
+    // tiene que salir de la cuenta — el server action lo vuelve a validar
+    // con la moneda ya resuelta (puede venir heredada de un gasto fijo).
+    origenFondos: z.enum(ORIGENES_FONDOS, { error: 'Elegí si se paga con la cuenta o con la caja de ahorro' }),
     notas: optionalString(2000),
+}).refine((g) => !(g.origenFondos === 'CAJA_AHORRO' && g.moneda !== 'ARS'), {
+    message: 'La caja de ahorro es en pesos: un gasto en USD tiene que salir de la cuenta',
+    path: ['origenFondos'],
 });
 
 export type GastoInput = z.input<typeof GastoSchema>;
