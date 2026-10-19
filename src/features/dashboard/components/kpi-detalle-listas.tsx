@@ -9,6 +9,11 @@ import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { StatusBadge } from '@/components/shared/status-badge';
 
+// "242", "97,5" — monto en dólares sin símbolo, para el formato "(242 USD a $ 1.540)".
+function formatNumero(valor: number): string {
+    return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(valor);
+}
+
 function Vacio({ texto }: { texto: string }) {
     return <p className="text-sm text-muted-foreground">{texto}</p>;
 }
@@ -54,12 +59,28 @@ export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
                             )}
                         </td>
                         <td className="py-2 text-right">
-                            {formatCurrency(c.contribucionMes, c.moneda)}
-                            {c.montoCubiertoAntesDelMes > 0 && (
-                                <p className="text-xs font-normal text-muted-foreground">
-                                    de {formatCurrency(c.monto, c.moneda)} — ya se cobró{' '}
-                                    {formatCurrency(c.montoCubiertoAntesDelMes, c.moneda)} antes de ese mes
-                                </p>
+                            {c.moneda === 'ARS' ? (
+                                formatCurrency(c.contribucionMes, 'ARS')
+                            ) : (
+                                // En USD: el total de la tarjeta es en pesos, así que se
+                                // muestra en pesos y abajo de dónde sale.
+                                // Ej: "$ 150.000 (100 USD a $ 1.500)".
+                                <>
+                                    <span className="whitespace-nowrap">
+                                        {c.contribucionMesArs !== null
+                                            ? formatCurrency(c.contribucionMesArs, 'ARS')
+                                            : 'Sin cotización'}
+                                    </span>{' '}
+                                    <span className="whitespace-nowrap text-muted-foreground">
+                                        ({formatNumero(c.contribucionMes)} USD
+                                        {c.tipoCambio !== null && <> a {formatCurrency(c.tipoCambio, 'ARS')}</>})
+                                    </span>
+                                    <p className="text-xs font-normal text-muted-foreground">
+                                        {c.fechaPago
+                                            ? `Dólar blue del ${formatDate(c.fechaPago)}, día del pago`
+                                            : 'Dólar blue de hoy — estimado hasta que paguen'}
+                                    </p>
+                                </>
                             )}
                         </td>
                     </tr>

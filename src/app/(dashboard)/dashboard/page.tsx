@@ -1,11 +1,5 @@
 // src/app/(dashboard)/dashboard/page.tsx
-import {
-    CargoFacturadoMes,
-    getCargosFacturadoMes,
-    getCargosProyectadosMes,
-    getDetalleKpis,
-    getKpis,
-} from '@/features/dashboard/queries';
+import { CargoFacturadoMes, getCargosFacturadoMes, getCargosProyectadosMes } from '@/features/dashboard/queries';
 import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card';
 import { DetalleFacturado } from '@/features/dashboard/components/kpi-detalle-listas';
 import {
@@ -18,7 +12,8 @@ import {
 } from '@/features/balance-mensual/queries';
 import { BalanceMensualPanel, SaldosCuentaYAhorro } from '@/features/balance-mensual/components/balance-mensual-panel';
 import { TipoCambioMensualGate } from '@/features/balance-mensual/components/tipo-cambio-mensual-gate';
-import { MONEDAS, Moneda, formatCurrency } from '@/lib/moneda';
+import { actualizarCotizacionesBlue } from '@/lib/cotizacion-dolar';
+import { formatCurrency } from '@/lib/moneda';
 
 // "Octubre 2026", etc. — los títulos de las tarjetas nombran el mes en vez
 // de decir "este mes", para no depender de que quien lo mira sepa en qué
@@ -29,9 +24,26 @@ function nombreMes(mes: Date): string {
     return `${nombre.charAt(0).toUpperCase() + nombre.slice(1)} ${mes.getUTCFullYear()}`;
 }
 
-function totalDeMoneda(cargos: CargoFacturadoMes[], moneda: Moneda): number {
-    return cargos.filter((c) => c.moneda === moneda).reduce((total, c) => total + c.contribucionMes, 0);
+// Todo en pesos: los cargos en USD ya vienen convertidos con el blue compra
+// (contribucionMesArs, ver getCargosFacturadoMes). Si alguno no tiene
+// cotización (la API nunca respondió) no se puede sumar: se avisa en la tarjeta.
+function totalEnPesos(cargos: CargoFacturadoMes[]): { total: number; faltaCotizacion: boolean } {
+    let total = 0;
+    let faltaCotizacion = false;
+    for (const c of cargos) {
+        if (c.contribucionMesArs === null) faltaCotizacion = true;
+        else total += c.contribucionMesArs;
+    }
+    return { total, faltaCotizacion };
 }
+
+function valorEnPesos(cargos: CargoFacturadoMes[]): string {
+    const { total, faltaCotizacion } = totalEnPesos(cargos);
+    return faltaCotizacion ? `${formatCurrency(total, 'ARS')} + USD sin cotización` : formatCurrency(total, 'ARS');
+}
+
+const ACLARACION_USD =
+    ' Lo cobrado en dólares se pasa a pesos con el dólar blue compra del día en que se pagó; si todavía no se pagó, con el de hoy (estimado).';
 
 export default async function DashboardPage() {
     const hoy = new Date();
@@ -39,9 +51,13 @@ export default async function DashboardPage() {
     const mesAnterior = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() - 1, 1));
     const mesSiguiente = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + 1, 1));
 
+    // Antes de calcular nada en pesos, completa el histórico del blue hasta
+    // hoy (como mucho una vez cada 10 minutos; si la API falla sigue con lo
+    // que ya hay guardado).
+    await actualizarCotizacionesBlue();
+
     const [
-        kpis,
-        detalle,
+        cargosMesActual,
         cargosMesAnterior,
         cargosMesSiguiente,
         cargosProyectadosMesSiguiente,
@@ -52,8 +68,7 @@ export default async function DashboardPage() {
         movimientosCuenta,
         movimientosAhorro,
     ] = await Promise.all([
-        getKpis(),
-        getDetalleKpis(),
+        getCargosFacturadoMes(mesActual),
         getCargosFacturadoMes(mesAnterior),
         getCargosFacturadoMes(mesSiguiente),
         getCargosProyectadosMes(mesSiguiente),
@@ -70,10 +85,9 @@ export default async function DashboardPage() {
     // getCargosProyectadosMes).
     const cargosVanAIngresar = [...cargosMesSiguiente, ...cargosProyectadosMesSiguiente];
 
-    // Sólo bloquean los que tuvieron Facturado en USD (los de USD=0 se
-    // generan solos vía cron, nunca deberían llegar a verse acá — pero por
-    // las dudas se filtran igual).
-    const mesesQueNecesitanTipoCambio = mesesPendientesDeReparto.filter((m) => m.facturadoUsd > 0);
+    // Sólo bloquean los meses con USD que no se pudieron pasar a pesos por
+    // falta de cotización (el resto se genera solo vía cron).
+    const mesesQueNecesitanTipoCambio = mesesPendientesDeReparto.filter((m) => m.usdSinCotizacion > 0);
 
     return (
         <div className="space-y-6">
@@ -81,52 +95,38 @@ export default async function DashboardPage() {
 
             <TipoCambioMensualGate mesesPendientes={mesesQueNecesitanTipoCambio} />
 
-            {MONEDAS.map((moneda) => {
-                const k = kpis.porMoneda.find((p) => p.moneda === moneda);
-                return (
-                    <div key={moneda} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <KpiDetalleCard
-                            label={
-                                <>
-                                    Dinero que ingresa en {nombreMes(mesActual)}
-                                    <br />
-                                    <span className="font-normal text-muted-foreground">{moneda}</span>
-                                </>
-                            }
-                            value={formatCurrency(k?.totalFacturadoMes ?? 0, moneda)}
-                            descripcion="Cargos que vencen este mes, descontando lo que ya se cobró antes de que arrancara el mes."
-                        >
-                            <DetalleFacturado cargos={detalle.cargosMes.filter((c) => c.moneda === moneda)} />
-                        </KpiDetalleCard>
-                        <KpiDetalleCard
-                            label={
-                                <>
-                                    Dinero que ingresó en {nombreMes(mesAnterior)}
-                                    <br />
-                                    <span className="font-normal text-muted-foreground">{moneda}</span>
-                                </>
-                            }
-                            value={formatCurrency(totalDeMoneda(cargosMesAnterior, moneda), moneda)}
-                            descripcion="Cargos que vencían el mes pasado, descontando lo que ya se había cobrado antes de que arrancara ese mes. Es la base del reparto de sueldo, gastos y ahorro."
-                        >
-                            <DetalleFacturado cargos={cargosMesAnterior.filter((c) => c.moneda === moneda)} />
-                        </KpiDetalleCard>
-                        <KpiDetalleCard
-                            label={
-                                <>
-                                    Dinero que va a ingresar en {nombreMes(mesSiguiente)}
-                                    <br />
-                                    <span className="font-normal text-muted-foreground">{moneda}</span>
-                                </>
-                            }
-                            value={formatCurrency(totalDeMoneda(cargosVanAIngresar, moneda), moneda)}
-                            descripcion="Cargos que vencen el mes que viene, descontando lo que ya se cobró. Incluye los de clientes con pago anticipado que todavía no se generaron (se generan el día que vencen)."
-                        >
-                            <DetalleFacturado cargos={cargosVanAIngresar.filter((c) => c.moneda === moneda)} />
-                        </KpiDetalleCard>
-                    </div>
-                );
-            })}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <KpiDetalleCard
+                    label={`Dinero que ingresó en ${nombreMes(mesAnterior)}`}
+                    value={valorEnPesos(cargosMesAnterior)}
+                    descripcion={
+                        'Cargos que vencían el mes pasado, cada uno completo aunque se haya pagado antes. Es la base del reparto de sueldo, gastos y ahorro.' +
+                        ACLARACION_USD
+                    }
+                >
+                    <DetalleFacturado cargos={cargosMesAnterior} />
+                </KpiDetalleCard>
+                <KpiDetalleCard
+                    label={`Dinero que ingresa en ${nombreMes(mesActual)}`}
+                    value={valorEnPesos(cargosMesActual)}
+                    descripcion={
+                        'Cargos que vencen este mes, cada uno completo aunque se haya pagado antes.' +
+                        ACLARACION_USD
+                    }
+                >
+                    <DetalleFacturado cargos={cargosMesActual} />
+                </KpiDetalleCard>
+                <KpiDetalleCard
+                    label={`Dinero que va a ingresar en ${nombreMes(mesSiguiente)}`}
+                    value={valorEnPesos(cargosVanAIngresar)}
+                    descripcion={
+                        'Cargos que vencen el mes que viene, cada uno completo aunque se haya pagado antes. Incluye los de clientes con pago anticipado que todavía no se generaron (se generan el día que vencen).' +
+                        ACLARACION_USD
+                    }
+                >
+                    <DetalleFacturado cargos={cargosVanAIngresar} />
+                </KpiDetalleCard>
+            </div>
 
             <BalanceMensualPanel repartos={repartos} />
 

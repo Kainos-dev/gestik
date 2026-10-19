@@ -6,17 +6,17 @@ import { CategoriaGasto } from '@/features/gastos/types';
 import { getTotalIngresosMes } from '@/features/finanzas/queries';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 import { dateToSqlDateString } from '@/lib/utils';
+import { sqlCotizacionBlueCompra } from '@/lib/cotizacion-dolar';
 
-// Cargos cuyo vencimiento cae este mes, con cuánto de cada uno ya estaba
-// cubierto ANTES de que arrancara el mes (mismo waterfall oldest-period-
-// first de getCargos en cargos/queries.ts, pero el total pagado del
-// servicio se corta en pagos con fecha anterior al 1º del mes actual). Un
-// cargo que ya se cobró de más antes de que empezara el mes no "debería
-// entrar" de nuevo este mes — esa plata ya entró el mes pasado — así que
-// "contribucionMes" (monto - lo ya cubierto antes del mes) es lo que
-// realmente cuenta para "Dinero que debería entrar este mes", no el monto
-// completo del cargo. "montoCubierto" (sin el corte de fecha) se mantiene
-// aparte sólo para calcular el badge de Estado real del cargo.
+// Cargos cuyo vencimiento cae en un mes: es lo que "ingresa" ese mes en
+// Balance Mensual y la base de su reparto. Cada cargo cuenta COMPLETO en el
+// mes en que vence, sin importar cuándo se pagó (pedido del equipo): si un
+// cliente adelanta el pago, igual cuenta para el mes que corresponde. Antes
+// se descontaba lo pagado antes de que arrancara el mes, pero esa plata
+// adelantada tampoco se contaba en el mes en que se pagó (ese mes sólo suma
+// sus propios vencimientos), así que no aparecía en ningún mes ni se
+// repartía. "montoCubierto" (waterfall oldest-period-first, igual que
+// getCargos en cargos/queries.ts) es sólo para el badge de Estado del cargo.
 export interface CargoFacturadoMes {
     id: string;
     clienteNombre: string;
@@ -27,8 +27,15 @@ export interface CargoFacturadoMes {
     moneda: Moneda;
     monto: number;
     montoCubierto: number;
-    montoCubiertoAntesDelMes: number;
-    contribucionMes: number;
+    contribucionMes: number; // lo que cuenta para el mes: el monto completo del cargo
+    // Pesos por dólar con que se pasa este cargo a pesos (1 si es en ARS):
+    // si ya se terminó de pagar, el blue compra del día de ese pago (o el
+    // tipo de cambio cargado en el pago, si el cliente pagó en pesos); si
+    // no, el blue compra de hoy — un estimado que se va actualizando hasta
+    // que paguen. null = no hay cotización guardada (la API nunca respondió).
+    tipoCambio: number | null;
+    fechaPago: Date | null; // día en que se terminó de cubrir el cargo; null si todavía no
+    contribucionMesArs: number | null; // contribucionMes en pesos; null si falta tipoCambio
     // true = el cargo todavía no existe, se proyecta a partir del servicio
     // (ver getCargosProyectadosMes) — no tiene id real ni estado de pago.
     proyectado: boolean;
@@ -43,11 +50,24 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
         `WITH pagos_por_servicio AS (
        SELECT
          servicio_id,
-         SUM(monto) AS total_pagado,
-         SUM(monto) FILTER (WHERE fecha < date_trunc('month', $1::date)) AS total_pagado_antes_del_mes
+         SUM(monto) AS total_pagado
        FROM pagos
        WHERE servicio_id IS NOT NULL
        GROUP BY servicio_id
+     ),
+     -- Pagos de cada servicio acumulados por fecha: el primero cuyo
+     -- acumulado alcanza el "acumulado_hasta_este" de un cargo es el que lo
+     -- terminó de cubrir (mismo waterfall oldest-first que arriba).
+     pagos_acumulados AS (
+       SELECT
+         servicio_id, fecha, moneda_pago, tipo_cambio,
+         SUM(monto) OVER (
+           PARTITION BY servicio_id
+           ORDER BY fecha, created_at, id
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+         ) AS acumulado
+       FROM pagos
+       WHERE servicio_id IS NOT NULL
      ),
      acumulado AS (
        SELECT
@@ -57,8 +77,7 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
            ORDER BY c.periodo, c.created_at, c.id
            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
          ) AS acumulado_hasta_este,
-         COALESCE(pps.total_pagado, 0) AS total_pagado_servicio,
-         COALESCE(pps.total_pagado_antes_del_mes, 0) AS total_pagado_antes_del_mes
+         COALESCE(pps.total_pagado, 0) AS total_pagado_servicio
        FROM cargos c
        LEFT JOIN pagos_por_servicio pps ON pps.servicio_id = c.servicio_id
      )
@@ -67,17 +86,30 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
        cl.nombre AS cliente_nombre, cl.color AS cliente_color,
        s.tipo AS servicio_tipo, s.nombre_personalizado AS servicio_nombre_personalizado,
        LEAST(a.monto, GREATEST(0, a.total_pagado_servicio - (a.acumulado_hasta_este - a.monto))) AS monto_cubierto,
-       LEAST(a.monto, GREATEST(0, a.total_pagado_antes_del_mes - (a.acumulado_hasta_este - a.monto))) AS monto_cubierto_antes_del_mes
+       cob.fecha AS fecha_pago,
+       CASE
+         WHEN a.moneda = 'ARS' THEN 1
+         WHEN cob.moneda_pago = 'ARS' AND cob.tipo_cambio IS NOT NULL THEN cob.tipo_cambio
+         ELSE ${sqlCotizacionBlueCompra('COALESCE(cob.fecha, CURRENT_DATE)')}
+       END AS tipo_cambio
      FROM acumulado a
      JOIN clientes cl ON cl.id = a.cliente_id
      JOIN servicios s ON s.id = a.servicio_id
+     LEFT JOIN LATERAL (
+       SELECT pa.fecha, pa.moneda_pago, pa.tipo_cambio
+       FROM pagos_acumulados pa
+       WHERE pa.servicio_id = a.servicio_id AND pa.acumulado >= a.acumulado_hasta_este
+       ORDER BY pa.acumulado
+       LIMIT 1
+     ) cob ON true
      WHERE date_trunc('month', a.vencimiento) = date_trunc('month', $1::date)
      ORDER BY cl.nombre`,
         [dateToSqlDateString(mes)]
     );
     return rows.map((r) => {
         const monto = Number(r.monto);
-        const montoCubiertoAntesDelMes = Number(r.monto_cubierto_antes_del_mes);
+        const contribucionMes = monto;
+        const tipoCambio = r.tipo_cambio !== null ? Number(r.tipo_cambio) : null;
         return {
             id: r.id,
             clienteNombre: r.cliente_nombre,
@@ -88,8 +120,10 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
             moneda: r.moneda,
             monto,
             montoCubierto: Number(r.monto_cubierto),
-            montoCubiertoAntesDelMes,
-            contribucionMes: monto - montoCubiertoAntesDelMes,
+            contribucionMes,
+            tipoCambio,
+            fechaPago: r.fecha_pago,
+            contribucionMesArs: tipoCambio !== null ? contribucionMes * tipoCambio : null,
             proyectado: false,
         };
     });
@@ -105,7 +139,8 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
 export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturadoMes[]> {
     const { rows } = await pool.query(
         `SELECT s.id, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda,
-            c.nombre AS cliente_nombre, c.color AS cliente_color
+            c.nombre AS cliente_nombre, c.color AS cliente_color,
+            CASE WHEN s.moneda = 'ARS' THEN 1 ELSE ${sqlCotizacionBlueCompra('CURRENT_DATE')} END AS tipo_cambio
      FROM servicios s
      JOIN clientes c ON c.id = s.cliente_id
      WHERE s.estado = 'ACTIVO'
@@ -117,6 +152,7 @@ export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturado
     );
     return rows.map((r) => {
         const monto = Number(r.precio);
+        const tipoCambio = r.tipo_cambio !== null ? Number(r.tipo_cambio) : null;
         return {
             id: `proyectado-${r.id}`,
             clienteNombre: r.cliente_nombre,
@@ -127,8 +163,10 @@ export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturado
             moneda: r.moneda,
             monto,
             montoCubierto: 0,
-            montoCubiertoAntesDelMes: 0,
             contribucionMes: monto,
+            tipoCambio, // todavía no se pagó: estimado con el blue compra de hoy
+            fechaPago: null,
+            contribucionMesArs: tipoCambio !== null ? monto * tipoCambio : null,
             proyectado: true,
         };
     });

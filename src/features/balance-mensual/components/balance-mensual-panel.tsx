@@ -1,6 +1,6 @@
 // src/features/balance-mensual/components/balance-mensual-panel.tsx
 import { MovimientoSaldo, RepartoMensual } from '../types';
-import type { DisponibleEnCuenta } from '../queries';
+import type { SaldoEnPesos } from '../queries';
 import { PORCENTAJE_AHORRO, PORCENTAJE_GASTOS_DEUDAS, PORCENTAJE_SUELDOS } from '../services';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card';
@@ -80,8 +80,10 @@ function DetalleAhorro({ repartos }: { repartos: RepartoMensual[] }) {
                     <tr key={r.id} className="border-b last:border-0">
                         <td className="py-2">{formatMesLargo(r.mes)}</td>
                         <td className="py-2 text-right text-muted-foreground">
-                            {formatCurrency(r.facturadoArs, 'ARS')}
-                            {r.facturadoUsd > 0 && <> · {formatCurrency(r.facturadoUsd, 'USD')}</>}
+                            {formatCurrency(r.facturadoArs + r.facturadoUsdEnArs, 'ARS')}
+                            {r.facturadoUsd > 0 && (
+                                <p className="text-xs">incluye {formatCurrency(r.facturadoUsd, 'USD')} pasados a pesos</p>
+                            )}
                         </td>
                         <td className="py-2 text-right font-medium">{formatCurrency(r.ahorroMesArs, 'ARS')}</td>
                     </tr>
@@ -133,14 +135,27 @@ function MovimientosTabla({
                         <td
                             className={cn(
                                 'py-2 text-right whitespace-nowrap',
-                                m.monto >= 0 ? 'text-green-500' : 'text-red-500'
+                                m.montoOriginal >= 0 ? 'text-green-500' : 'text-red-500'
                             )}
                         >
-                            {m.monto >= 0 ? '+' : ''}
-                            {formatCurrency(m.monto, m.moneda)}
+                            {m.monto === null ? (
+                                <span className="text-muted-foreground">Sin cotización</span>
+                            ) : (
+                                <>
+                                    {m.monto >= 0 ? '+' : ''}
+                                    {formatCurrency(m.monto, 'ARS')}
+                                </>
+                            )}
+                            {/* Pagado en dólares: cuánto fue y con qué blue compra se pasó a pesos. */}
+                            {m.monedaOriginal === 'USD' && (
+                                <p className="text-xs font-normal text-muted-foreground">
+                                    {formatCurrency(Math.abs(m.montoOriginal), 'USD')}
+                                    {m.tipoCambio !== null && <> × {formatCurrency(m.tipoCambio, 'ARS')}</>}
+                                </p>
+                            )}
                         </td>
                         <td className="py-2 text-right font-medium whitespace-nowrap">
-                            {formatCurrency(m.saldo, m.moneda)}
+                            {formatCurrency(m.saldo, 'ARS')}
                         </td>
                     </tr>
                 ))}
@@ -156,6 +171,19 @@ const TIPO_MOVIMIENTO_LABELS: Record<MovimientoSaldo['tipo'], string> = {
     REPOSICION_DEUDA: 'Reposición de deuda',
 };
 
+function ValorSaldo({ saldo }: { saldo: SaldoEnPesos | null }) {
+    return (
+        <>
+            <p className="text-4xl font-semibold">{saldo !== null ? formatCurrency(saldo.total, 'ARS') : '—'}</p>
+            {saldo?.faltaCotizacion && (
+                <p className="text-xs text-amber-500">
+                    Hay movimientos en dólares sin cotización guardada que no se están contando.
+                </p>
+            )}
+        </>
+    );
+}
+
 export function SaldosCuentaYAhorro({
     disponible,
     cajaDeAhorro,
@@ -163,8 +191,8 @@ export function SaldosCuentaYAhorro({
     movimientosCuenta,
     movimientosAhorro,
 }: {
-    disponible: DisponibleEnCuenta | null;
-    cajaDeAhorro: number | null;
+    disponible: SaldoEnPesos | null;
+    cajaDeAhorro: SaldoEnPesos | null;
     repartos: RepartoMensual[];
     movimientosCuenta: MovimientoSaldo[];
     movimientosAhorro: MovimientoSaldo[];
@@ -176,28 +204,19 @@ export function SaldosCuentaYAhorro({
             <TarjetaSaldo
                 titulo="Plata disponible en cuenta"
                 align="start"
-                explicacion={`Suma el ${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de gastos de cada reparto mensual (sueldos y ahorro no van a esta cuenta) y resta los gastos pagados con la cuenta (los gastos fijos, siempre) y las reposiciones de deuda desde el primer reparto. Puede dar negativo si ya se pagaban gastos o deudas antes de usar este sistema — es un aproximado, no el saldo real de la cuenta.`}
+                explicacion={`Suma el ${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de gastos de cada reparto mensual (sueldos y ahorro no van a esta cuenta) y resta los gastos pagados con la cuenta (los gastos fijos, siempre) y las reposiciones de deuda desde el primer reparto. Lo que se pagó en dólares se resta en pesos, con el dólar blue compra del día del pago. Puede dar negativo si ya se pagaban gastos o deudas antes de usar este sistema — es un aproximado, no el saldo real de la cuenta.`}
                 detalle={<MovimientosTabla movimientos={movimientosCuenta} cuenta="CUENTA" />}
             >
-                {disponible === null ? (
-                    <p className="text-4xl font-semibold">—</p>
-                ) : (
-                    <>
-                        <p className="text-4xl font-semibold">{formatCurrency(disponible.ars, 'ARS')}</p>
-                        {disponible.usd !== 0 && (
-                            <p className="text-4xl font-semibold">{formatCurrency(disponible.usd, 'USD')}</p>
-                        )}
-                    </>
-                )}
+                <ValorSaldo saldo={disponible} />
                 <p className="text-sm text-muted-foreground">Baja con cada gasto pagado con la cuenta y cada deuda repuesta.</p>
             </TarjetaSaldo>
             <TarjetaSaldo
                 titulo="Caja de ahorro"
                 align="end"
-                explicacion={`Suma del ${porcentaje(PORCENTAJE_AHORRO)} de ahorro de todos los repartos mensuales, en pesos (lo que se fue facturando en USD se convierte con el tipo de cambio de cada mes), menos los gastos pagados con la caja de ahorro.`}
+                explicacion={`Suma del ${porcentaje(PORCENTAJE_AHORRO)} de ahorro de todos los repartos mensuales, en pesos (lo facturado en USD se pasa a pesos con el dólar blue compra), menos los gastos pagados con la caja de ahorro.`}
                 detalle={<MovimientosTabla movimientos={movimientosAhorro} cuenta="AHORRO" />}
             >
-                <p className="text-4xl font-semibold">{cajaDeAhorro !== null ? formatCurrency(cajaDeAhorro, 'ARS') : '—'}</p>
+                <ValorSaldo saldo={cajaDeAhorro} />
                 <p className="text-sm text-muted-foreground">
                     {ultimoReparto
                         ? `Último aporte: ${formatCurrency(ultimoReparto.ahorroMesArs, 'ARS')} (${formatMesLargo(ultimoReparto.mes)}).`

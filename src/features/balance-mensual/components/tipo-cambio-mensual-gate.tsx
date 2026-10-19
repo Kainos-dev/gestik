@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 
-// Se muestra sólo cuando hay al menos un mes cerrado con Facturado en USD
-// que todavía no tiene reparto (ver getMesesPendientesDeReparto): el mes
+// Se muestra sólo cuando hay al menos un mes cerrado con USD que no se
+// pudieron pasar a pesos porque no hay ninguna cotización del blue guardada
+// (la API no respondió nunca) y por eso no tiene reparto (ver
+// getMesesPendientesDeReparto): el mes
 // más viejo es el que bloquea — hasta que se resuelva ése, los siguientes
 // tampoco se generan (ver renovarRepartosMensuales).
 export function TipoCambioMensualGate({ mesesPendientes }: { mesesPendientes: MesPendienteDeReparto[] }) {
@@ -27,8 +29,8 @@ export function TipoCambioMensualGate({ mesesPendientes }: { mesesPendientes: Me
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
                         <p className="text-sm">
-                            Falta cargar el tipo de cambio de un mes con Facturado en USD para poder generar su
-                            reparto de sueldos/ahorro/gastos
+                            No se pudo obtener la cotización del dólar blue de un mes con cobros en USD: hay que
+                            cargarla a mano para generar su reparto de sueldo/gastos/ahorro
                             {mesesPendientes.length > 1 ? ` (y ${mesesPendientes.length - 1} mes(es) más en cola)` : ''}.
                         </p>
                     </div>
@@ -42,7 +44,7 @@ export function TipoCambioMensualGate({ mesesPendientes }: { mesesPendientes: Me
                     <DialogHeader>
                         <DialogTitle>Tipo de cambio mensual</DialogTitle>
                         <DialogDescription>
-                            Necesario para convertir la porción de ahorro en dólares a pesos.
+                            Necesario para pasar a pesos lo facturado en dólares ese mes.
                         </DialogDescription>
                     </DialogHeader>
                     <TipoCambioMensualForm mes={mesMasViejo} onSuccess={() => setOpen(false)} />

@@ -60,9 +60,9 @@ export function TipoCambioMensualForm({ mes, onSuccess }: { mes: MesPendienteDeR
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <p className="text-sm text-muted-foreground">
-                {formatMesLargo(mes.mes)} facturó {formatCurrency(mes.facturadoUsd, 'USD')} (y{' '}
-                {formatCurrency(mes.facturadoArs, 'ARS')}). Para repartir la porción en dólares en sueldos/ahorro/
-                gastos, ingresá el tipo de cambio (ARS por USD) que corresponde a ese mes.
+                No se pudo obtener la cotización del dólar blue para pasar a pesos{' '}
+                {formatCurrency(mes.usdSinCotizacion, 'USD')} facturados en {formatMesLargo(mes.mes)}. Ingresá a mano
+                el dólar blue compra (pesos por dólar) para poder generar el reparto de ese mes.
             </p>
 
             <div className="space-y-1.5">
