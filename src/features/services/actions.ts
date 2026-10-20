@@ -4,13 +4,14 @@
 import { pool } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { ServicioSchema, ServicioInput } from "./schema";
-import { calcularProximoVencimiento, calcularVencimientoCargo } from "./services";
+import { calcularProximoVencimiento, calcularVencimientoCargo, ultimoDiaDelMes } from "./services";
 
 export async function crearServicio(data: ServicioInput) {
   const parsed = ServicioSchema.parse(data);
   const proximoVencimiento = calcularProximoVencimiento(
     parsed.fechaInicio,
     parsed.frecuencia,
+    parsed.venceFinDeMes,
   );
 
   const { rows: clienteRows } = await pool.query(
@@ -20,8 +21,8 @@ export async function crearServicio(data: ServicioInput) {
   const modalidadPago = clienteRows[0]?.modalidad_pago ?? 'POSPAGO';
 
   const { rows } = await pool.query(
-    `INSERT INTO servicios (cliente_id, tipo, nombre_personalizado, precio, moneda, frecuencia, fecha_inicio, proximo_vencimiento)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO servicios (cliente_id, tipo, nombre_personalizado, precio, moneda, frecuencia, fecha_inicio, proximo_vencimiento, vence_fin_de_mes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING id`,
     [
       parsed.clienteId,
@@ -32,6 +33,7 @@ export async function crearServicio(data: ServicioInput) {
       parsed.frecuencia,
       parsed.fechaInicio,
       proximoVencimiento,
+      parsed.venceFinDeMes,
     ],
   );
 
@@ -55,7 +57,9 @@ export async function editarServicio(id: string, data: ServicioInput) {
   const parsed = ServicioSchema.parse(data);
 
   const { rows } = await pool.query(
-    `SELECT frecuencia, fecha_inicio, proximo_vencimiento, precio, moneda FROM servicios WHERE id = $1`,
+    `SELECT s.frecuencia, s.fecha_inicio, s.proximo_vencimiento, s.precio, s.moneda, s.vence_fin_de_mes, c.modalidad_pago
+     FROM servicios s JOIN clientes c ON c.id = s.cliente_id
+     WHERE s.id = $1`,
     [id],
   );
   const actual = rows[0];
@@ -71,15 +75,33 @@ export async function editarServicio(id: string, data: ServicioInput) {
     parsed.frecuencia !== actual.frecuencia ||
     parsed.fechaInicio.getTime() !== new Date(actual.fecha_inicio).getTime();
 
-  const proximoVencimiento = cambioCiclo
-    ? calcularProximoVencimiento(parsed.fechaInicio, parsed.frecuencia)
+  let proximoVencimiento = cambioCiclo
+    ? calcularProximoVencimiento(parsed.fechaInicio, parsed.frecuencia, parsed.venceFinDeMes)
     : actual.proximo_vencimiento;
+
+  // Al pasar a "vence el último día del mes" sin tocar el ciclo: los
+  // siguientes vencimientos ya salen a fin de mes solos (ver
+  // calcularProximoVencimiento), pero en un cliente ANTICIPADO el cargo vence
+  // el mismo día que arranca su período (= proximo_vencimiento), así que ése
+  // se corre al último día de su propio mes — ej. un 15/11 pasa a 30/11. En
+  // POSPAGO no hace falta: el próximo cargo ya va a vencer a fin del mes
+  // siguiente.
+  if (
+    !cambioCiclo &&
+    parsed.venceFinDeMes &&
+    !actual.vence_fin_de_mes &&
+    actual.modalidad_pago === 'ANTICIPADO' &&
+    proximoVencimiento
+  ) {
+    const p = new Date(proximoVencimiento);
+    proximoVencimiento = ultimoDiaDelMes(p.getUTCFullYear(), p.getUTCMonth());
+  }
 
   await pool.query(
     `UPDATE servicios
      SET tipo = $1, nombre_personalizado = $2, precio = $3, moneda = $4, frecuencia = $5,
          fecha_inicio = $6, proximo_vencimiento = $7, estado = COALESCE($8, estado),
-         updated_at = now()
+         vence_fin_de_mes = $10, updated_at = now()
      WHERE id = $9`,
     [
       parsed.tipo,
@@ -91,6 +113,7 @@ export async function editarServicio(id: string, data: ServicioInput) {
       proximoVencimiento,
       parsed.estado,
       id,
+      parsed.venceFinDeMes,
     ],
   );
 
@@ -138,7 +161,11 @@ export async function editarServicio(id: string, data: ServicioInput) {
 // manual (un ciclo) y la automática (posible catch-up de varios ciclos).
 async function renovarUnCiclo(servicio: any, precio: number): Promise<Date> {
   const fechaBase = servicio.proximo_vencimiento ?? servicio.fecha_inicio;
-  const nuevoVencimiento = calcularProximoVencimiento(new Date(fechaBase), servicio.frecuencia)!;
+  const nuevoVencimiento = calcularProximoVencimiento(
+    new Date(fechaBase),
+    servicio.frecuencia,
+    servicio.vence_fin_de_mes,
+  )!;
 
   // 1. Genera el cargo correspondiente a este período, con el precio vigente
   //    al renovar (si se editó, se copia acá para siempre, igual que ya pasa

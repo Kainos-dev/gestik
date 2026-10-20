@@ -33,6 +33,7 @@ import {
 import {
   TIPO_SERVICIO_LABELS,
   FRECUENCIA_LABELS,
+  DIA_DE_COBRO_LABELS,
   ESTADO_STYLES,
 } from "@/lib/constants";
 import { ClienteColorDot } from "@/components/shared/cliente-color-dot";
@@ -71,11 +72,13 @@ export function ServicioForm({
       moneda: servicio?.moneda ?? "ARS",
       frecuencia: servicio?.frecuencia ?? "MENSUAL",
       fechaInicio: servicio?.fechaInicio ?? new Date(),
+      venceFinDeMes: servicio?.venceFinDeMes ?? false,
       estado: servicio?.estado,
     },
   });
 
   const tipoSeleccionado = watch("tipo");
+  const frecuenciaSeleccionada = watch("frecuencia");
 
   function onSubmit(data: ServicioInput) {
     startTransition(async () => {
@@ -193,6 +196,34 @@ export function ServicioForm({
           />
         </div>
       </div>
+
+      {/* Día de cobro: sólo tiene sentido si el servicio se repite. */}
+      {frecuenciaSeleccionada !== "UNICO" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="venceFinDeMes">Día de cobro *</Label>
+          <Controller
+            name="venceFinDeMes"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value ? "FIN_DE_MES" : "MISMO_DIA"}
+                onValueChange={(value) => field.onChange(value === "FIN_DE_MES")}
+              >
+                <SelectTrigger id="venceFinDeMes" className="w-full">
+                  <SelectValue>{(value: string) => DIA_DE_COBRO_LABELS[value] ?? value}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DIA_DE_COBRO_LABELS).map(([valor, label]) => (
+                    <SelectItem key={valor} value={valor}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+      )}
 
       {tipoSeleccionado === "OTRO" && (
         <div className="space-y-1.5">

@@ -62,6 +62,13 @@ export const TIPO_SERVICIO_LABELS: Record<string, string> = {
   OTRO: "Otro",
 };
 
+// "Día de cobro" de un servicio recurrente (servicios.vence_fin_de_mes, que
+// es un boolean: el form lo muestra como un Select con estas dos opciones).
+export const DIA_DE_COBRO_LABELS: Record<string, string> = {
+  MISMO_DIA: 'El mismo día que la fecha de inicio',
+  FIN_DE_MES: 'El último día de cada mes',
+};
+
 export const FRECUENCIA_LABELS: Record<string, string> = {
   UNICO: "Único",
   MENSUAL: "Mensual",

@@ -30,6 +30,9 @@ export const ServicioSchema = z
     moneda: z.enum(MONEDAS),
     frecuencia: z.enum(FRECUENCIAS_SERVICIO),
     fechaInicio: z.coerce.date(),
+    // true = se cobra el último día de cada mes (28/29/30/31) en vez del
+    // mismo día que la fecha de inicio — ver calcularProximoVencimiento.
+    venceFinDeMes: z.boolean().default(false),
     estado: z.enum(ESTADOS_SERVICIO).optional(),
   })
   .refine((data) => data.tipo !== 'OTRO' || Boolean(data.nombrePersonalizado), {

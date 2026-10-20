@@ -8,13 +8,34 @@ import { EstadoRenovacionServicio, EstadoServicio, FrecuenciaServicio } from "./
 export function calcularProximoVencimiento(
   fechaInicio: Date,
   frecuencia: FrecuenciaServicio,
+  venceFinDeMes = false,
 ): Date | null {
   if (frecuencia === "UNICO") return null;
+
+  // "Vence el último día del mes" (servicios.vence_fin_de_mes): el próximo
+  // vencimiento es el último día del mes siguiente (o del mismo mes del año
+  // que viene, si es ANUAL), sin importar qué día era la fecha anterior —
+  // así nunca se corre: 31/01 → 28/02 → 31/03. Sumar un mes a mano en
+  // cambio pasaría de 30/01 a 02/03 (febrero no tiene 30) y de ahí quedaría
+  // corrido al 2 para siempre. En UTC, igual que se guardan las fechas.
+  if (venceFinDeMes) {
+    const base = new Date(fechaInicio);
+    const año = base.getUTCFullYear() + (frecuencia === "ANUAL" ? 1 : 0);
+    const mes = base.getUTCMonth() + (frecuencia === "MENSUAL" ? 1 : 0);
+    return ultimoDiaDelMes(año, mes);
+  }
 
   const proximo = new Date(fechaInicio);
   if (frecuencia === "MENSUAL") proximo.setMonth(proximo.getMonth() + 1);
   if (frecuencia === "ANUAL") proximo.setFullYear(proximo.getFullYear() + 1);
   return proximo;
+}
+
+// Último día del mes "mes" (0-11; si se pasa de 11, Date.UTC lo lleva al
+// año siguiente) a medianoche UTC: el día 0 del mes siguiente es el último
+// día de este.
+export function ultimoDiaDelMes(año: number, mes: number): Date {
+  return new Date(Date.UTC(año, mes + 1, 0));
 }
 
 /**

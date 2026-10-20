@@ -29,6 +29,7 @@ export interface Servicio {
   frecuencia: FrecuenciaServicio;
   fechaInicio: Date;
   proximoVencimiento: Date | null;
+  venceFinDeMes: boolean; // se cobra el último día de cada mes (ver calcularProximoVencimiento)
   estado: EstadoServicio;
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +48,7 @@ export function mapServicio(row: any): Servicio {
     frecuencia: row.frecuencia,
     fechaInicio: row.fecha_inicio,
     proximoVencimiento: row.proximo_vencimiento,
+    venceFinDeMes: row.vence_fin_de_mes,
     estado: row.estado,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
