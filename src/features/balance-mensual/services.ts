@@ -17,7 +17,7 @@ export interface RepartoCalculado {
 
 /**
  * Reparte el Facturado de un mes, ya todo en pesos (lo facturado en ARS más
- * lo facturado en USD pasado a pesos con el blue compra — ver
+ * lo facturado en USD pasado a pesos con el blue venta — ver
  * getFacturadoDelMes), en sueldos (30%), la cuenta de gastos fijos y deudas
  * (30%) y ahorro (40%). Antes sueldos y gastos-deudas quedaban separados por
  * moneda; desde que los USD se convierten solos, todo el reparto es en pesos

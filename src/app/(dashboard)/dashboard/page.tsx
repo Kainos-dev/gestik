@@ -24,7 +24,7 @@ function nombreMes(mes: Date): string {
     return `${nombre.charAt(0).toUpperCase() + nombre.slice(1)} ${mes.getUTCFullYear()}`;
 }
 
-// Todo en pesos: los cargos en USD ya vienen convertidos con el blue compra
+// Todo en pesos: los cargos en USD ya vienen convertidos con el blue venta
 // (contribucionMesArs, ver getCargosFacturadoMes). Si alguno no tiene
 // cotización (la API nunca respondió) no se puede sumar: se avisa en la tarjeta.
 function totalEnPesos(cargos: CargoFacturadoMes[]): { total: number; faltaCotizacion: boolean } {
@@ -43,7 +43,7 @@ function valorEnPesos(cargos: CargoFacturadoMes[]): string {
 }
 
 const ACLARACION_USD =
-    ' Lo cobrado en dólares se pasa a pesos con el dólar blue compra del día en que se pagó; si todavía no se pagó, con el de hoy (estimado).';
+    ' Lo cobrado en dólares se pasa a pesos con el dólar blue venta del día en que se pagó; si todavía no se pagó, con el de hoy (estimado).';
 
 export default async function DashboardPage() {
     const hoy = new Date();
@@ -133,7 +133,6 @@ export default async function DashboardPage() {
             <SaldosCuentaYAhorro
                 disponible={disponibleEnCuenta}
                 cajaDeAhorro={cajaDeAhorro}
-                repartos={repartos}
                 movimientosCuenta={movimientosCuenta}
                 movimientosAhorro={movimientosAhorro}
             />

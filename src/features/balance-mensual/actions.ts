@@ -3,14 +3,19 @@
 
 import { pool } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { TipoCambioMensualSchema, TipoCambioMensualInput } from './schema';
+import {
+    TipoCambioMensualSchema,
+    TipoCambioMensualInput,
+    MovimientoCuentaSchema,
+    MovimientoCuentaInput,
+} from './schema';
 import { calcularReparto } from './services';
 import { getFacturadoDelMes, getMesesPendientesDeReparto } from './queries';
 import { dateToSqlDateString } from '@/lib/utils';
 import { actualizarCotizacionesBlue } from '@/lib/cotizacion-dolar';
 
 // Genera el reparto de un mes puntual: recalcula su Facturado (congelándolo
-// en la fila) con los USD ya pasados a pesos (blue compra, ver
+// en la fila) con los USD ya pasados a pesos (blue venta, ver
 // getFacturadoDelMes), aplica el 30/30/40 y lo inserta. "tipoCambioManual"
 // sólo se usa para los USD que no se pudieron convertir por falta de
 // cotización guardada; sin él, si falta alguna, tira. El ON CONFLICT evita
@@ -78,4 +83,18 @@ export async function renovarRepartosMensuales() {
     if (generados > 0) revalidatePath('/dashboard');
 
     return { generados, pendientesRestantes: pendientes.length - generados };
+}
+
+// Ingreso o retiro manual de "Plata disponible en cuenta" o de "Caja de
+// ahorro": plata que entra o sale por fuera de lo que el sistema ya registra
+// (pagos, gastos, reposiciones de deuda). La caja de ahorro se carga sólo así.
+export async function registrarMovimientoCuenta(data: MovimientoCuentaInput) {
+    const parsed = MovimientoCuentaSchema.parse(data);
+
+    await pool.query(
+        `INSERT INTO movimientos_cuenta (tipo, cuenta, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5)`,
+        [parsed.tipo, parsed.cuenta, parsed.fecha, parsed.monto, parsed.descripcion || null]
+    );
+
+    revalidatePath('/dashboard');
 }

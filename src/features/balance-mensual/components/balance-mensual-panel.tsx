@@ -7,6 +7,9 @@ import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card
 import { formatCurrency } from '@/lib/moneda';
 import { cn, formatDate } from '@/lib/utils';
 import { TarjetaSaldo } from './tarjeta-saldo';
+import { AccionesCuenta } from './movimiento-cuenta-dialog';
+import { Badge } from '@/components/ui/badge';
+import type { ReactNode } from 'react';
 
 const MESES_LARGOS = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -28,6 +31,18 @@ function porcentaje(p: number): string {
     return `${Math.round(p * 100)}%`;
 }
 
+// Sueldo es un monto fijo; Gastos y Ahorro son estimados: hoy el 30% de
+// gastos se usa entero para gastos fijos y deudas, pero si mañana sobra, esa
+// diferencia cambia lo que realmente queda para gastos y para ahorro.
+function TituloReparto({ texto, tipo }: { texto: string; tipo: 'FIJO' | 'ESTIMADO' }) {
+    return (
+        <span className="flex flex-wrap items-center gap-2">
+            {texto}
+            <Badge variant={tipo === 'FIJO' ? 'default' : 'outline'}>{tipo === 'FIJO' ? 'Fijo' : 'Estimado'}</Badge>
+        </span>
+    );
+}
+
 // Una línea por moneda dentro de la misma tarjeta (mismo patrón que
 // DeudasTotales en deudas/components/deudas-totales.tsx) — para no repetir
 // "Sueldo (ARS)" / "Sueldo (USD)" como dos tarjetas separadas. Sueldo y
@@ -40,7 +55,7 @@ function TarjetaPorMoneda({
     ars,
     usd,
 }: {
-    label: string;
+    label: ReactNode;
     descripcion: string;
     ars: number;
     usd: number;
@@ -93,21 +108,10 @@ function DetalleAhorro({ repartos }: { repartos: RepartoMensual[] }) {
     );
 }
 
-const NOMBRE_DEL_REPARTO: Record<'CUENTA' | 'AHORRO', string> = {
-    CUENTA: `${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de gastos`,
-    AHORRO: `${porcentaje(PORCENTAJE_AHORRO)} de ahorro`,
-};
-
 // Historial (modal) de "Plata disponible en cuenta" / "Caja de ahorro":
 // fecha, nombre del movimiento, cuánto entró o salió y en cuánto dejó la
 // cuenta (ver getMovimientosCuenta/getMovimientosAhorro en queries.ts).
-function MovimientosTabla({
-    movimientos,
-    cuenta,
-}: {
-    movimientos: MovimientoSaldo[];
-    cuenta: 'CUENTA' | 'AHORRO';
-}) {
+function MovimientosTabla({ movimientos }: { movimientos: MovimientoSaldo[] }) {
     if (movimientos.length === 0) {
         return <p className="text-sm text-muted-foreground">Todavía no hay movimientos.</p>;
     }
@@ -127,9 +131,7 @@ function MovimientosTabla({
                     <tr key={m.id} className="border-b last:border-0">
                         <td className="py-2 whitespace-nowrap">{formatDate(m.fecha)}</td>
                         <td className="py-2">
-                            {m.tipo === 'REPARTO' && m.mesReparto
-                                ? `${NOMBRE_DEL_REPARTO[cuenta]} de ${formatMesLargo(m.mesReparto)}`
-                                : m.nombre}
+                            {m.nombre}
                             <p className="text-xs text-muted-foreground">{TIPO_MOVIMIENTO_LABELS[m.tipo]}</p>
                         </td>
                         <td
@@ -146,7 +148,7 @@ function MovimientosTabla({
                                     {formatCurrency(m.monto, 'ARS')}
                                 </>
                             )}
-                            {/* Pagado en dólares: cuánto fue y con qué blue compra se pasó a pesos. */}
+                            {/* Pagado en dólares: cuánto fue y con qué blue venta se pasó a pesos. */}
                             {m.monedaOriginal === 'USD' && (
                                 <p className="text-xs font-normal text-muted-foreground">
                                     {formatCurrency(Math.abs(m.montoOriginal), 'USD')}
@@ -165,7 +167,10 @@ function MovimientosTabla({
 }
 
 const TIPO_MOVIMIENTO_LABELS: Record<MovimientoSaldo['tipo'], string> = {
-    REPARTO: 'Reparto mensual',
+    SALDO_INICIAL: 'Saldo inicial',
+    INGRESO: 'Ingreso manual',
+    RETIRO: 'Retiro manual',
+    PAGO: 'Pago de cliente',
     GASTO_FIJO: 'Gasto fijo',
     GASTO: 'Gasto suelto',
     REPOSICION_DEUDA: 'Reposición de deuda',
@@ -187,40 +192,38 @@ function ValorSaldo({ saldo }: { saldo: SaldoEnPesos | null }) {
 export function SaldosCuentaYAhorro({
     disponible,
     cajaDeAhorro,
-    repartos,
     movimientosCuenta,
     movimientosAhorro,
 }: {
     disponible: SaldoEnPesos | null;
     cajaDeAhorro: SaldoEnPesos | null;
-    repartos: RepartoMensual[];
     movimientosCuenta: MovimientoSaldo[];
     movimientosAhorro: MovimientoSaldo[];
 }) {
-    const ultimoReparto = repartos.at(-1);
-
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <TarjetaSaldo
                 titulo="Plata disponible en cuenta"
                 align="start"
-                explicacion={`Suma el ${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de gastos de cada reparto mensual (sueldos y ahorro no van a esta cuenta) y resta los gastos pagados con la cuenta (los gastos fijos, siempre) y las reposiciones de deuda desde el primer reparto. Lo que se pagó en dólares se resta en pesos, con el dólar blue compra del día del pago. Puede dar negativo si ya se pagaban gastos o deudas antes de usar este sistema — es un aproximado, no el saldo real de la cuenta.`}
-                detalle={<MovimientosTabla movimientos={movimientosCuenta} cuenta="CUENTA" />}
+                explicacion="Arranca en el saldo inicial y suma cada pago de un cliente y cada ingreso manual. Resta los gastos pagados con la cuenta (los gastos fijos, siempre), las reposiciones de deuda y los retiros manuales. Lo que entra o sale en dólares se pasa a pesos con el dólar blue venta del día."
+                detalle={<MovimientosTabla movimientos={movimientosCuenta} />}
+                acciones={<AccionesCuenta cuenta="CUENTA" />}
             >
                 <ValorSaldo saldo={disponible} />
-                <p className="text-sm text-muted-foreground">Baja con cada gasto pagado con la cuenta y cada deuda repuesta.</p>
+                <p className="text-sm text-muted-foreground">
+                    Sube con cada pago de un cliente y baja con cada gasto pagado con la cuenta y cada deuda repuesta.
+                </p>
             </TarjetaSaldo>
             <TarjetaSaldo
                 titulo="Caja de ahorro"
                 align="end"
-                explicacion={`Suma del ${porcentaje(PORCENTAJE_AHORRO)} de ahorro de todos los repartos mensuales, en pesos (lo facturado en USD se pasa a pesos con el dólar blue compra), menos los gastos pagados con la caja de ahorro.`}
-                detalle={<MovimientosTabla movimientos={movimientosAhorro} cuenta="AHORRO" />}
+                explicacion="Se carga a mano: arranca en el saldo inicial, suma cada ingreso y resta cada retiro y los gastos pagados con la caja de ahorro."
+                detalle={<MovimientosTabla movimientos={movimientosAhorro} />}
+                acciones={<AccionesCuenta cuenta="CAJA_AHORRO" />}
             >
                 <ValorSaldo saldo={cajaDeAhorro} />
                 <p className="text-sm text-muted-foreground">
-                    {ultimoReparto
-                        ? `Último aporte: ${formatCurrency(ultimoReparto.ahorroMesArs, 'ARS')} (${formatMesLargo(ultimoReparto.mes)}).`
-                        : 'Todavía no se generó ningún reparto mensual.'}
+                    Sube con cada ingreso a la caja y baja con cada retiro o gasto pagado con la caja.
                 </p>
             </TarjetaSaldo>
         </div>
@@ -251,21 +254,21 @@ export function BalanceMensualPanel({ repartos }: { repartos: RepartoMensual[] }
     return (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <TarjetaPorMoneda
-                label={`Sueldo (${porcentaje(PORCENTAJE_SUELDOS)} de los ingresos de ${mes})`}
-                descripcion={`Calculado sobre lo Facturado en ${formatMesLargo(ultimoReparto.mes)}.`}
+                label={<TituloReparto texto={`Sueldo (${porcentaje(PORCENTAJE_SUELDOS)} de los ingresos de ${mes})`} tipo="FIJO" />}
+                descripcion={`Monto fijo, calculado sobre lo Facturado en ${formatMesLargo(ultimoReparto.mes)}.`}
                 ars={ultimoReparto.sueldosArs}
                 usd={ultimoReparto.sueldosUsd}
             />
             <TarjetaPorMoneda
-                label={`Gastos (${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de los ingresos de ${mes})`}
-                descripcion="Para gastos fijos y reposiciones de deuda."
+                label={<TituloReparto texto={`Gastos (${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de los ingresos de ${mes})`} tipo="ESTIMADO" />}
+                descripcion="Estimado: para gastos fijos y reposiciones de deuda. Si sobra, puede cambiar."
                 ars={ultimoReparto.gastosDeudasArs}
                 usd={ultimoReparto.gastosDeudasUsd}
             />
             <KpiDetalleCard
-                label={`Ahorro (${porcentaje(PORCENTAJE_AHORRO)} de los ingresos de ${mes})`}
+                label={<TituloReparto texto={`Ahorro (${porcentaje(PORCENTAJE_AHORRO)} de los ingresos de ${mes})`} tipo="ESTIMADO" />}
                 value={formatCurrency(ultimoReparto.ahorroMesArs, 'ARS')}
-                descripcion={`${porcentaje(PORCENTAJE_AHORRO)} de lo Facturado en ${formatMesLargo(ultimoReparto.mes)} (ya convertido a pesos). Historial mes a mes:`}
+                descripcion={`Estimado: ${porcentaje(PORCENTAJE_AHORRO)} de lo Facturado en ${formatMesLargo(ultimoReparto.mes)} (ya convertido a pesos). Puede cambiar según lo que sobre de gastos. Historial mes a mes:`}
             >
                 <DetalleAhorro repartos={repartos} />
             </KpiDetalleCard>

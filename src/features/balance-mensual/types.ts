@@ -5,7 +5,7 @@ import { Moneda } from '@/lib/moneda';
 // fijos y deudas (30%) / ahorro (40%) — ver calcularReparto en services.ts.
 // "facturadoArs"/"facturadoUsd" quedan congelados al momento de generarse
 // (no se recalculan después). Todo el reparto es en pesos: lo facturado en
-// USD se pasa a pesos con el blue compra (facturadoUsdEnArs) antes de
+// USD se pasa a pesos con el blue venta (facturadoUsdEnArs) antes de
 // repartir, así que sueldosUsd/gastosDeudasUsd quedan en 0 (las columnas
 // siguen existiendo por los repartos anteriores a la conversión automática).
 export interface RepartoMensual {
@@ -13,7 +13,7 @@ export interface RepartoMensual {
     mes: Date;
     facturadoArs: number;
     facturadoUsd: number;
-    facturadoUsdEnArs: number; // facturadoUsd ya pasado a pesos (blue compra) — 0 en repartos viejos sin USD
+    facturadoUsdEnArs: number; // facturadoUsd ya pasado a pesos (blue venta) — 0 en repartos viejos sin USD
     tipoCambio: number | null; // promedio efectivo usado para los USD (facturadoUsdEnArs / facturadoUsd)
     sueldosArs: number;
     sueldosUsd: number;
@@ -56,17 +56,22 @@ export interface MesPendienteDeReparto {
 // "monto" (en pesos) va con signo (+ entra, - sale) y "saldo" es cómo quedó
 // la cuenta justo después de este movimiento. Si el movimiento fue en USD,
 // "monedaOriginal"/"montoOriginal" dicen cuánto fue en dólares y
-// "tipoCambio" con qué blue compra se pasó a pesos; "monto" es null si no
-// había cotización guardada para ese día. Los REPARTO no traen nombre: se
-// arma en el componente a partir de "mesReparto".
-export type TipoMovimientoSaldo = 'REPARTO' | 'GASTO_FIJO' | 'GASTO' | 'REPOSICION_DEUDA';
+// "tipoCambio" con qué blue venta se pasó a pesos; "monto" es null si no
+// había cotización guardada para ese día.
+export type TipoMovimientoSaldo =
+    | 'SALDO_INICIAL'
+    | 'INGRESO'
+    | 'RETIRO'
+    | 'PAGO'
+    | 'GASTO_FIJO'
+    | 'GASTO'
+    | 'REPOSICION_DEUDA';
 
 export interface MovimientoSaldo {
     id: string;
     tipo: TipoMovimientoSaldo;
     fecha: Date;
     nombre: string | null;
-    mesReparto: Date | null;
     monedaOriginal: Moneda;
     montoOriginal: number;
     tipoCambio: number | null;
@@ -80,7 +85,6 @@ export function mapMovimientoSaldo(row: any): MovimientoSaldo {
         tipo: row.tipo,
         fecha: row.fecha,
         nombre: row.nombre,
-        mesReparto: row.mes_reparto,
         monedaOriginal: row.moneda_original,
         montoOriginal: Number(row.monto_original),
         tipoCambio: row.tipo_cambio !== null ? Number(row.tipo_cambio) : null,

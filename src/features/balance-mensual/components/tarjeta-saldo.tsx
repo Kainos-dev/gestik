@@ -13,13 +13,14 @@ interface TarjetaSaldoProps {
     align: 'start' | 'end'; // del tooltip — "end" si la tarjeta queda pegada al borde derecho
     children: ReactNode; // valor + pie de la tarjeta
     detalle: ReactNode; // historial de movimientos, ya renderizado en el servidor
+    acciones?: ReactNode; // botones extra (ej. ingresar/retirar plata) — no abren el historial
 }
 
 // Tarjeta grande (más que las KPI de arriba) para un saldo acumulado
 // ("Plata disponible en cuenta", "Caja de ahorro"). Clickeable como
 // KpiDetalleCard, pero no puede ser un <button>: adentro tiene el trigger
 // del tooltip, que ya es un botón — así que es un div con role="button".
-export function TarjetaSaldo({ titulo, explicacion, align, children, detalle }: TarjetaSaldoProps) {
+export function TarjetaSaldo({ titulo, explicacion, align, children, detalle, acciones }: TarjetaSaldoProps) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -57,6 +58,17 @@ export function TarjetaSaldo({ titulo, explicacion, align, children, detalle }: 
                     <CardContent className="space-y-1">
                         {children}
                         <p className="text-xs text-muted-foreground">Ver últimos movimientos</p>
+                        {acciones && (
+                            // Los clicks adentro (incluido el diálogo que abren, que en el
+                            // árbol de React sigue colgando de acá) no abren el historial.
+                            <div
+                                className="pt-2"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                            >
+                                {acciones}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

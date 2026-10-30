@@ -62,7 +62,7 @@ export function TipoCambioMensualForm({ mes, onSuccess }: { mes: MesPendienteDeR
             <p className="text-sm text-muted-foreground">
                 No se pudo obtener la cotización del dólar blue para pasar a pesos{' '}
                 {formatCurrency(mes.usdSinCotizacion, 'USD')} facturados en {formatMesLargo(mes.mes)}. Ingresá a mano
-                el dólar blue compra (pesos por dólar) para poder generar el reparto de ese mes.
+                el dólar blue venta (pesos por dólar) para poder generar el reparto de ese mes.
             </p>
 
             <div className="space-y-1.5">

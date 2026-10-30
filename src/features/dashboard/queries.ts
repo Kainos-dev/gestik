@@ -6,7 +6,7 @@ import { CategoriaGasto } from '@/features/gastos/types';
 import { getTotalIngresosMes } from '@/features/finanzas/queries';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 import { dateToSqlDateString } from '@/lib/utils';
-import { sqlCotizacionBlueCompra } from '@/lib/cotizacion-dolar';
+import { sqlCotizacionBlueVenta } from '@/lib/cotizacion-dolar';
 
 // Cargos cuyo vencimiento cae en un mes: es lo que "ingresa" ese mes en
 // Balance Mensual y la base de su reparto. Cada cargo cuenta COMPLETO en el
@@ -29,9 +29,9 @@ export interface CargoFacturadoMes {
     montoCubierto: number;
     contribucionMes: number; // lo que cuenta para el mes: el monto completo del cargo
     // Pesos por dólar con que se pasa este cargo a pesos (1 si es en ARS):
-    // si ya se terminó de pagar, el blue compra del día de ese pago (o el
+    // si ya se terminó de pagar, el blue venta del día de ese pago (o el
     // tipo de cambio cargado en el pago, si el cliente pagó en pesos); si
-    // no, el blue compra de hoy — un estimado que se va actualizando hasta
+    // no, el blue venta de hoy — un estimado que se va actualizando hasta
     // que paguen. null = no hay cotización guardada (la API nunca respondió).
     tipoCambio: number | null;
     fechaPago: Date | null; // día en que se terminó de cubrir el cargo; null si todavía no
@@ -90,7 +90,7 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
        CASE
          WHEN a.moneda = 'ARS' THEN 1
          WHEN cob.moneda_pago = 'ARS' AND cob.tipo_cambio IS NOT NULL THEN cob.tipo_cambio
-         ELSE ${sqlCotizacionBlueCompra('COALESCE(cob.fecha, CURRENT_DATE)')}
+         ELSE ${sqlCotizacionBlueVenta('COALESCE(cob.fecha, CURRENT_DATE)')}
        END AS tipo_cambio
      FROM acumulado a
      JOIN clientes cl ON cl.id = a.cliente_id
@@ -140,7 +140,7 @@ export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturado
     const { rows } = await pool.query(
         `SELECT s.id, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda,
             c.nombre AS cliente_nombre, c.color AS cliente_color,
-            CASE WHEN s.moneda = 'ARS' THEN 1 ELSE ${sqlCotizacionBlueCompra('CURRENT_DATE')} END AS tipo_cambio
+            CASE WHEN s.moneda = 'ARS' THEN 1 ELSE ${sqlCotizacionBlueVenta('CURRENT_DATE')} END AS tipo_cambio
      FROM servicios s
      JOIN clientes c ON c.id = s.cliente_id
      WHERE s.estado = 'ACTIVO'
@@ -164,7 +164,7 @@ export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturado
             monto,
             montoCubierto: 0,
             contribucionMes: monto,
-            tipoCambio, // todavía no se pagó: estimado con el blue compra de hoy
+            tipoCambio, // todavía no se pagó: estimado con el blue venta de hoy
             fechaPago: null,
             contribucionMesArs: tipoCambio !== null ? monto * tipoCambio : null,
             proyectado: true,

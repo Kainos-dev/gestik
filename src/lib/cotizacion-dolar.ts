@@ -2,13 +2,12 @@
 import { pool } from '@/lib/db';
 
 // Cotización del dólar blue para pasar a pesos lo que entra o sale en USD.
-// Se usa el valor de COMPRA: cuando les pagan en dólares y los cambian, es
-// a ese precio que se los compran (el de venta es el que pagarías vos para
-// comprarlos). Fuentes gratuitas, sin API key:
+// Se usa el valor de VENTA (el más caro de los dos), por decisión del
+// equipo — hasta oct 2026 se usaba el de compra. Fuentes gratuitas, sin API key:
 //   - argentinadatos.com: histórico día por día (desde 2011).
 //   - dolarapi.com: la cotización de hoy, que el histórico puede tardar en tener.
 // Todo se guarda en "cotizaciones_dolar_blue" y las queries leen de ahí
-// (con sqlCotizacionBlueCompra), nunca de la API directo: así un mes
+// (con sqlCotizacionBlueVenta), nunca de la API directo: así un mes
 // cerrado no cambia sus números y la app sigue andando si la API se cae.
 const URL_HISTORICO = 'https://api.argentinadatos.com/v1/cotizaciones/dolares/blue';
 const URL_HOY = 'https://dolarapi.com/v1/dolares/blue';
@@ -75,11 +74,11 @@ export async function actualizarCotizacionesBlue(): Promise<void> {
 }
 
 /**
- * Subconsulta SQL con el blue compra vigente en la fecha "expresionFecha"
+ * Subconsulta SQL con el blue venta vigente en la fecha "expresionFecha"
  * (la del último día con cotización hasta esa fecha inclusive — fines de
  * semana y feriados toman la del último día hábil). NULL si la tabla no
  * tiene nada hasta esa fecha.
  */
-export function sqlCotizacionBlueCompra(expresionFecha: string): string {
-    return `(SELECT cb.compra FROM cotizaciones_dolar_blue cb WHERE cb.fecha <= (${expresionFecha})::date ORDER BY cb.fecha DESC LIMIT 1)`;
+export function sqlCotizacionBlueVenta(expresionFecha: string): string {
+    return `(SELECT cb.venta FROM cotizaciones_dolar_blue cb WHERE cb.fecha <= (${expresionFecha})::date ORDER BY cb.fecha DESC LIMIT 1)`;
 }
