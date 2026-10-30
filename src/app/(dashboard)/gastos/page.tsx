@@ -8,6 +8,7 @@ import {
     getTotalesDeudas,
 } from '@/features/deudas/queries';
 import { GastosFijosTable } from '@/features/gastos/components/gastos-fijos-table';
+import { GastosFijosTotal } from '@/features/gastos/components/gastos-fijos-total';
 import { GastosTable } from '@/features/gastos/components/gastos-table';
 import { DeudasTable } from '@/features/deudas/components/deudas-table';
 import { DeudasTotales } from '@/features/deudas/components/deudas-totales';
@@ -49,6 +50,9 @@ export default async function GastosPage() {
                 </TabsContent>
 
                 <TabsContent value="fijos" className="space-y-4 pt-4">
+                    <div className="flex justify-start">
+                        <GastosFijosTotal gastosFijos={gastosFijos} />
+                    </div>
                     <div className="flex justify-end gap-2">
                         <TotalAPagarDialog gastosFijos={gastosFijos} />
                         <NuevoGastoFijoDialog />

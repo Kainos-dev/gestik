@@ -86,3 +86,20 @@ export function calcularTotalPorMoneda(gastosFijos: GastoFijo[]): TotalPorMoneda
     }
     return MONEDAS.map((moneda) => ({ moneda, total: totales.get(moneda) ?? 0 }));
 }
+
+/**
+ * Totales de los gastos fijos ACTIVOS, separados por moneda y por período:
+ * "mensual" junta MENSUAL y MENSUAL_30_DIAS (los dos se pagan una vez por
+ * mes) y "anual" los ANUAL aparte, para no mezclar en un mismo número montos
+ * que se pagan una vez por mes con montos que se pagan una vez por año.
+ */
+export function calcularTotalesGastosFijosActivos(gastosFijos: GastoFijo[]): {
+    mensual: TotalPorMoneda[];
+    anual: TotalPorMoneda[];
+} {
+    const activos = gastosFijos.filter((gastoFijo) => gastoFijo.estado === 'ACTIVO');
+    return {
+        mensual: calcularTotalPorMoneda(activos.filter((gastoFijo) => gastoFijo.frecuencia !== 'ANUAL')),
+        anual: calcularTotalPorMoneda(activos.filter((gastoFijo) => gastoFijo.frecuencia === 'ANUAL')),
+    };
+}
