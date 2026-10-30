@@ -57,7 +57,7 @@ export async function editarServicio(id: string, data: ServicioInput) {
   const parsed = ServicioSchema.parse(data);
 
   const { rows } = await pool.query(
-    `SELECT s.frecuencia, s.fecha_inicio, s.proximo_vencimiento, s.precio, s.moneda, s.vence_fin_de_mes, c.modalidad_pago
+    `SELECT s.frecuencia, s.fecha_inicio, s.proximo_vencimiento, s.precio, s.moneda, s.vence_fin_de_mes, s.estado, c.modalidad_pago
      FROM servicios s JOIN clientes c ON c.id = s.cliente_id
      WHERE s.id = $1`,
     [id],
@@ -145,6 +145,36 @@ export async function editarServicio(id: string, data: ServicioInput) {
        WHERE cargos.id = a.id
          AND LEAST(a.monto, GREATEST(0, p.total_pagado - (a.acumulado_hasta_este - a.monto))) < a.monto`,
       [id, parsed.precio, parsed.moneda],
+    );
+  }
+
+  // Al dar de baja un servicio (pasar de ACTIVO a PAUSADO o FINALIZADO) se
+  // borran sus cargos que todavía no vencieron y no tienen nada de pago
+  // aplicado (mismo cálculo en cascada que getCargos): el cargo del período
+  // en curso se genera al arrancar ese período, así que sin esto un servicio
+  // pausado a mitad de mes igual dejaba un cobro pendiente para el mes
+  // siguiente. Los cargos ya vencidos o con un pago parcial se conservan,
+  // porque eso sí es plata que el cliente debe.
+  if (actual?.estado === 'ACTIVO' && parsed.estado && parsed.estado !== 'ACTIVO') {
+    await pool.query(
+      `WITH pagado AS (
+         SELECT COALESCE(SUM(monto), 0) AS total_pagado FROM pagos WHERE servicio_id = $1
+       ),
+       acumulado AS (
+         SELECT c.id, c.monto, c.vencimiento,
+           SUM(c.monto) OVER (
+             ORDER BY c.periodo, c.created_at, c.id
+             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           ) AS acumulado_hasta_este
+         FROM cargos c
+         WHERE c.servicio_id = $1
+       )
+       DELETE FROM cargos
+       USING acumulado a, pagado p
+       WHERE cargos.id = a.id
+         AND a.vencimiento > CURRENT_DATE
+         AND p.total_pagado <= a.acumulado_hasta_este - a.monto`,
+      [id],
     );
   }
 
