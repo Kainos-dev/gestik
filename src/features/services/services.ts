@@ -25,9 +25,12 @@ export function calcularProximoVencimiento(
     return ultimoDiaDelMes(año, mes);
   }
 
+  // Con los setters UTC, igual que se guardan las fechas: con los locales,
+  // en Argentina el 01/12 00:00 UTC es todavía 30/11 y sumarle un mes daba
+  // 31/12 en vez de 01/01 (en el servidor, que corre en UTC, da lo mismo).
   const proximo = new Date(fechaInicio);
-  if (frecuencia === "MENSUAL") proximo.setMonth(proximo.getMonth() + 1);
-  if (frecuencia === "ANUAL") proximo.setFullYear(proximo.getFullYear() + 1);
+  if (frecuencia === "MENSUAL") proximo.setUTCMonth(proximo.getUTCMonth() + 1);
+  if (frecuencia === "ANUAL") proximo.setUTCFullYear(proximo.getUTCFullYear() + 1);
   return proximo;
 }
 

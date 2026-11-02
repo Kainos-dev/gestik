@@ -53,7 +53,7 @@ export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
                         <td className="py-2">{formatDate(c.vencimiento)}</td>
                         <td className="py-2">
                             {c.proyectado ? (
-                                <span className="text-xs text-muted-foreground">Se genera ese día</span>
+                                <span className="text-xs text-muted-foreground">Todavía no se generó</span>
                             ) : (
                                 <StatusBadge value={calcularEstadoCargo(c.monto, c.montoCubierto, c.vencimiento)} />
                             )}

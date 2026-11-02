@@ -7,6 +7,7 @@ import { getTotalIngresosMes } from '@/features/finanzas/queries';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 import { dateToSqlDateString } from '@/lib/utils';
 import { sqlCotizacionBlueVenta } from '@/lib/cotizacion-dolar';
+import { calcularProximoVencimiento, calcularVencimientoCargo } from '@/features/services/services';
 
 // Cargos cuyo vencimiento cae en un mes: es lo que "ingresa" ese mes en
 // Balance Mensual y la base de su reparto. Cada cargo cuenta COMPLETO en el
@@ -129,47 +130,69 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
     });
 }
 
-// Cargos que van a vencer en "mes" pero todavía no se generaron. Sólo pasa
-// con clientes ANTICIPADO: su cargo vence al arrancar su propio periodo
-// (ver calcularVencimientoCargo en services/services.ts), y ese cargo recién
-// lo crea la renovación el mismo día que llega "proximo_vencimiento". Los
-// POSPAGO no hace falta proyectarlos — su cargo que vence el mes que viene
-// ya existe (se generó al arrancar el periodo actual). Se usa para "Dinero
-// que va a ingresar" el mes siguiente, sumado a getCargosFacturadoMes.
+// Cargos que van a vencer en "mes" pero todavía no se generaron. La
+// renovación recién crea el cargo de un período el día que arranca ese
+// período (cuando llega "proximo_vencimiento"), así que todos los períodos
+// desde proximo_vencimiento en adelante todavía no tienen cargo. Se recorren
+// esos períodos con las mismas reglas que usa la renovación
+// (calcularProximoVencimiento + calcularVencimientoCargo) y se proyectan los
+// que vencen en "mes". Ejemplos: un ANTICIPADO cuyo período arranca el 30/11
+// vence ese mismo día; un POSPAGO cuyo período arranca el 15/11 vence el
+// 15/12, y ese cargo no existe hasta el 15/11. Se suma a getCargosFacturadoMes
+// en las tarjetas del mes actual y del mes que viene.
+const MAX_PERIODOS_PROYECTADOS = 24;
+
 export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturadoMes[]> {
     const { rows } = await pool.query(
         `SELECT s.id, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda,
+            s.frecuencia, s.vence_fin_de_mes, c.modalidad_pago,
             c.nombre AS cliente_nombre, c.color AS cliente_color,
             CASE WHEN s.moneda = 'ARS' THEN 1 ELSE ${sqlCotizacionBlueVenta('CURRENT_DATE')} END AS tipo_cambio
      FROM servicios s
      JOIN clientes c ON c.id = s.cliente_id
      WHERE s.estado = 'ACTIVO'
        AND s.frecuencia != 'UNICO'
-       AND c.modalidad_pago = 'ANTICIPADO'
-       AND date_trunc('month', s.proximo_vencimiento) = date_trunc('month', $1::date)
-     ORDER BY c.nombre`,
-        [dateToSqlDateString(mes)]
+       AND s.proximo_vencimiento IS NOT NULL
+     ORDER BY c.nombre`
     );
-    return rows.map((r) => {
+
+    const inicioMes = Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth(), 1);
+    const inicioMesSiguiente = Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth() + 1, 1);
+    const proyectados: CargoFacturadoMes[] = [];
+
+    for (const r of rows) {
         const monto = Number(r.precio);
         const tipoCambio = r.tipo_cambio !== null ? Number(r.tipo_cambio) : null;
-        return {
-            id: `proyectado-${r.id}`,
-            clienteNombre: r.cliente_nombre,
-            clienteColor: r.cliente_color,
-            servicioTipo: r.tipo,
-            servicioNombrePersonalizado: r.nombre_personalizado,
-            vencimiento: r.proximo_vencimiento,
-            moneda: r.moneda,
-            monto,
-            montoCubierto: 0,
-            contribucionMes: monto,
-            tipoCambio, // todavía no se pagó: estimado con el blue venta de hoy
-            fechaPago: null,
-            contribucionMesArs: tipoCambio !== null ? monto * tipoCambio : null,
-            proyectado: true,
-        };
-    });
+        let periodo = new Date(r.proximo_vencimiento);
+
+        for (let i = 0; i < MAX_PERIODOS_PROYECTADOS && periodo.getTime() < inicioMesSiguiente; i++) {
+            const siguiente = calcularProximoVencimiento(periodo, r.frecuencia, r.vence_fin_de_mes);
+            if (!siguiente) break;
+            const vencimiento = calcularVencimientoCargo(periodo, siguiente, r.modalidad_pago);
+
+            if (vencimiento.getTime() >= inicioMes && vencimiento.getTime() < inicioMesSiguiente) {
+                proyectados.push({
+                    id: `proyectado-${r.id}-${i}`,
+                    clienteNombre: r.cliente_nombre,
+                    clienteColor: r.cliente_color,
+                    servicioTipo: r.tipo,
+                    servicioNombrePersonalizado: r.nombre_personalizado,
+                    vencimiento,
+                    moneda: r.moneda,
+                    monto,
+                    montoCubierto: 0,
+                    contribucionMes: monto,
+                    tipoCambio, // todavía no se pagó: estimado con el blue venta de hoy
+                    fechaPago: null,
+                    contribucionMesArs: tipoCambio !== null ? monto * tipoCambio : null,
+                    proyectado: true,
+                });
+            }
+            periodo = siguiente;
+        }
+    }
+
+    return proyectados;
 }
 
 export interface KpiPorMoneda {

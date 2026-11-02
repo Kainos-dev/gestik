@@ -60,6 +60,7 @@ export default async function DashboardPage() {
         cargosMesActual,
         cargosMesAnterior,
         cargosMesSiguiente,
+        cargosProyectadosMesActual,
         cargosProyectadosMesSiguiente,
         mesesPendientesDeReparto,
         repartos,
@@ -71,6 +72,7 @@ export default async function DashboardPage() {
         getCargosFacturadoMes(mesActual),
         getCargosFacturadoMes(mesAnterior),
         getCargosFacturadoMes(mesSiguiente),
+        getCargosProyectadosMes(mesActual),
         getCargosProyectadosMes(mesSiguiente),
         getMesesPendientesDeReparto(),
         getRepartosMensuales(),
@@ -80,9 +82,10 @@ export default async function DashboardPage() {
         getMovimientosAhorro(),
     ]);
 
-    // "Va a ingresar" = cargos que ya existen y vencen el mes que viene, más
-    // los de clientes ANTICIPADO que todavía no se generaron (ver
+    // "Ingresa" / "Va a ingresar" = cargos que ya existen y vencen ese mes,
+    // más los que todavía no se generaron porque su período no arrancó (ver
     // getCargosProyectadosMes).
+    const cargosIngresan = [...cargosMesActual, ...cargosProyectadosMesActual];
     const cargosVanAIngresar = [...cargosMesSiguiente, ...cargosProyectadosMesSiguiente];
 
     // Sólo bloquean los meses con USD que no se pudieron pasar a pesos por
@@ -108,19 +111,19 @@ export default async function DashboardPage() {
                 </KpiDetalleCard>
                 <KpiDetalleCard
                     label={`Dinero que ingresa en ${nombreMes(mesActual)}`}
-                    value={valorEnPesos(cargosMesActual)}
+                    value={valorEnPesos(cargosIngresan)}
                     descripcion={
-                        'Cargos que vencen este mes, cada uno completo aunque se haya pagado antes.' +
+                        'Cargos que vencen este mes, cada uno completo aunque se haya pagado antes. Incluye los que todavía no se generaron porque su período no arrancó.' +
                         ACLARACION_USD
                     }
                 >
-                    <DetalleFacturado cargos={cargosMesActual} />
+                    <DetalleFacturado cargos={cargosIngresan} />
                 </KpiDetalleCard>
                 <KpiDetalleCard
                     label={`Dinero que va a ingresar en ${nombreMes(mesSiguiente)}`}
                     value={valorEnPesos(cargosVanAIngresar)}
                     descripcion={
-                        'Cargos que vencen el mes que viene, cada uno completo aunque se haya pagado antes. Incluye los de clientes con pago anticipado que todavía no se generaron (se generan el día que vencen).' +
+                        'Cargos que vencen el mes que viene, cada uno completo aunque se haya pagado antes. Incluye los que todavía no se generaron porque su período no arrancó.' +
                         ACLARACION_USD
                     }
                 >
