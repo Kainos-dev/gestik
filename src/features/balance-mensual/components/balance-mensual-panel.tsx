@@ -61,11 +61,11 @@ function TarjetaPorMoneda({
     usd: number;
 }) {
     return (
-        <Card>
-            <CardHeader className="pb-2">
+        <Card size="sm" className="h-full gap-2">
+            <CardHeader>
                 <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1">
+            <CardContent className="mt-auto space-y-0.5">
                 <p className="text-2xl font-semibold">{formatCurrency(ars, 'ARS')}</p>
                 {usd > 0 && <p className="text-2xl font-semibold">{formatCurrency(usd, 'USD')}</p>}
                 <p className="text-xs text-muted-foreground">{descripcion}</p>
@@ -179,7 +179,7 @@ const TIPO_MOVIMIENTO_LABELS: Record<MovimientoSaldo['tipo'], string> = {
 function ValorSaldo({ saldo }: { saldo: SaldoEnPesos | null }) {
     return (
         <>
-            <p className="text-4xl font-semibold">{saldo !== null ? formatCurrency(saldo.total, 'ARS') : '—'}</p>
+            <p className="text-3xl font-semibold lg:text-4xl">{saldo !== null ? formatCurrency(saldo.total, 'ARS') : '—'}</p>
             {saldo?.faltaCotizacion && (
                 <p className="text-xs text-amber-500">
                     Hay movimientos en dólares sin cotización guardada que no se están contando.
@@ -201,7 +201,7 @@ export function SaldosCuentaYAhorro({
     movimientosAhorro: MovimientoSaldo[];
 }) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <TarjetaSaldo
                 titulo="Plata disponible en cuenta"
                 align="start"
@@ -252,7 +252,7 @@ export function BalanceMensualPanel({ repartos }: { repartos: RepartoMensual[] }
     const mes = formatNombreMes(ultimoReparto.mes);
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <TarjetaPorMoneda
                 label={<TituloReparto texto={`Sueldo (${porcentaje(PORCENTAJE_SUELDOS)} de los ingresos de ${mes})`} tipo="FIJO" />}
                 descripcion={`Monto fijo, calculado sobre lo Facturado en ${formatMesLargo(ultimoReparto.mes)}.`}

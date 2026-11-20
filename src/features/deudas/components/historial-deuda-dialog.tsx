@@ -39,6 +39,12 @@ export function HistorialDeudaDialog({ deuda, reposiciones }: { deuda: Deuda; re
                 <DialogHeader>
                     <DialogTitle>Historial de &quot;{deuda.descripcion}&quot;</DialogTitle>
                 </DialogHeader>
+                {deuda.deudaReemplazoId && (
+                    <p className="text-sm text-muted-foreground">
+                        Importe original {formatCurrency(deuda.montoTotal, deuda.moneda)}.
+                        El saldo se trasladó a la deuda en USD {deuda.deudaReemplazoId}.
+                    </p>
+                )}
 
                 {reposiciones.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Todavía no se registraron reposiciones.</p>
@@ -49,19 +55,28 @@ export function HistorialDeudaDialog({ deuda, reposiciones }: { deuda: Deuda; re
                                 <TableHead>Fecha</TableHead>
                                 <TableHead>Acreditado</TableHead>
                                 <TableHead>Pagado</TableHead>
-                                <TableHead>Cambio</TableHead>
+                                <TableHead>Cotización</TableHead>
                                 <TableHead>Notas</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {reposiciones.map((r) => (
                                 <TableRow key={r.id}>
-                                    <TableCell>{formatDate(r.fecha)}</TableCell>
-                                    <TableCell>{formatCurrency(r.monto, deuda.moneda)}</TableCell>
-                                    <TableCell>{formatCurrency(r.montoPagado, r.monedaPago)}</TableCell>
-                                    <TableCell>{r.tipoCambio ? r.tipoCambio : '—'}</TableCell>
+                                    <TableCell>
+                                        {deuda.deudaReemplazoId
+                                            ? new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date(r.fecha))
+                                            : formatDate(r.fecha)}
+                                    </TableCell>
+                                    <TableCell>{r.anuladaAt ? '—' : formatCurrency(r.monto, deuda.moneda)}</TableCell>
+                                    <TableCell>{r.anuladaAt ? '—' : formatCurrency(r.montoPagado, r.monedaPago)}</TableCell>
+                                    <TableCell>{r.tipoCambio ? formatCurrency(r.tipoCambio, 'ARS') : '—'}</TableCell>
                                     <TableCell className="max-w-48 truncate whitespace-normal text-muted-foreground">
-                                        {r.notas || '—'}
+                                        {r.anuladaAt && (
+                                            <p className="font-medium">
+                                                Anulada · {formatCurrency(r.montoPagado, r.monedaPago)} · {r.motivoAnulacion}
+                                            </p>
+                                        )}
+                                        {r.notas ?? (r.anuladaAt ? null : '—')}
                                     </TableCell>
                                 </TableRow>
                             ))}

@@ -1,6 +1,26 @@
 // src/features/deudas/services.ts
-import { Moneda } from '@/lib/moneda';
+import { MONEDAS, Moneda } from '@/lib/moneda';
 import { EstadoDeuda } from './types';
+
+/**
+ * Cuánto falta reponer, separado por moneda (nunca se convierte ni se
+ * mezcla ARS con USD). Sólo suma deudas no eliminadas, cada una por lo que
+ * le falta (montoTotal − montoRepuesto, mínimo 0): una saldada aporta 0 y una
+ * sobrepagada no compensa a otra — mismo criterio que total_pendiente en
+ * getTotalesDeudas (deudas/queries.ts).
+ */
+export function calcularPendientePorMoneda(
+    deudas: { montoTotal: number; montoRepuesto: number; moneda: Moneda; eliminadaAt: Date | null }[]
+): Record<Moneda, number> {
+    const pendiente = Object.fromEntries(MONEDAS.map((m) => [m, 0])) as Record<Moneda, number>;
+    for (const d of deudas) {
+        if (d.eliminadaAt !== null) continue;
+        pendiente[d.moneda] += Math.max(0, d.montoTotal - d.montoRepuesto);
+    }
+    // Redondeo a centavos para que la suma de decimales no muestre 0,000001.
+    for (const m of MONEDAS) pendiente[m] = Math.round(pendiente[m] * 100) / 100;
+    return pendiente;
+}
 
 /**
  * Estado calculado (no persistido) a partir de cuánto se repuso de una

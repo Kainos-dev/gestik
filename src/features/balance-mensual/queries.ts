@@ -117,7 +117,9 @@ function sqlMovimientos(cuenta: 'CUENTA' | 'CAJA_AHORRO'): string {
        FROM reposiciones_deuda rd
        JOIN inicio i ON rd.fecha::date >= i.desde
        JOIN deudas d ON d.id = rd.deuda_id
-       JOIN integrantes it ON it.id = d.integrante_id`
+       JOIN integrantes it ON it.id = d.integrante_id
+       -- Antes de la migración la clave aún no existe y se lee como NULL.
+       WHERE (to_jsonb(rd)->>'anulada_at') IS NULL`
             : '';
 
     return `

@@ -93,12 +93,16 @@ export default async function DashboardPage() {
     const mesesQueNecesitanTipoCambio = mesesPendientesDeReparto.filter((m) => m.usdSinCotizacion > 0);
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-semibold">Balance Mensual</h1>
+        // Distribución compacta (gap-3, tarjetas size="sm") para que en una
+        // laptop de 768px de alto entre todo sin scroll. Si la ventana es más
+        // baja que el contenido nada se aplasta: el <main> del layout scrollea
+        // (igual que en mobile).
+        <div className="flex flex-col gap-3">
+            <h1 className="text-xl font-semibold">Balance Mensual</h1>
 
             <TipoCambioMensualGate mesesPendientes={mesesQueNecesitanTipoCambio} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <KpiDetalleCard
                     label={`Dinero que ingresó en ${nombreMes(mesAnterior)}`}
                     value={valorEnPesos(cargosMesAnterior)}

@@ -6,9 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { RefreshCw } from 'lucide-react';
 
 import { ReposicionDeudaSchema, ReposicionDeudaInput } from '../schema';
-import { reponerDeuda } from '../actions';
+import { obtenerCotizacionBlue, reponerDeuda } from '../actions';
 import { calcularMontoReposicion } from '../services';
 import { Deuda } from '../types';
 
@@ -24,6 +26,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { MONEDAS, formatCurrency } from '@/lib/moneda';
+import { dateToSqlDateString, formatDate } from '@/lib/utils';
 import { DatePicker } from '@/components/shared/date-picker';
 
 export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess?: () => void }) {
@@ -40,7 +43,6 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
         defaultValues: {
             montoPagado: 0,
             monedaPago: deuda.moneda,
-            tipoCambio: undefined,
             fecha: new Date(),
             notas: '',
         },
@@ -48,28 +50,48 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
 
     const montoPagado = useWatch({ control, name: 'montoPagado' });
     const monedaPago = useWatch({ control, name: 'monedaPago' });
-    const tipoCambio = useWatch({ control, name: 'tipoCambio' });
+    const fecha = useWatch({ control, name: 'fecha' });
     const requiereConversion = monedaPago !== deuda.moneda;
+    const fechaSql = fecha instanceof Date && !Number.isNaN(fecha.getTime()) ? dateToSqlDateString(fecha) : null;
+
+    // Sólo informativa: el servidor vuelve a resolver la cotización al
+    // guardar (ver reponerDeuda), así que no se puede mandar una distinta.
+    const cotizacion = useQuery({
+        queryKey: ['cotizacion-blue-venta', fechaSql],
+        queryFn: () => obtenerCotizacionBlue(fechaSql!),
+        enabled: requiereConversion && fechaSql !== null,
+        retry: false,
+        staleTime: 5 * 60 * 1000,
+    });
+    const cotizacionOk = cotizacion.data?.ok ? cotizacion.data : null;
+    const errorCotizacion = cotizacion.isError
+        ? 'No se pudo obtener la cotización del dólar blue. Probá de nuevo.'
+        : cotizacion.data && !cotizacion.data.ok
+          ? cotizacion.data.error
+          : null;
 
     let preview: number | null = null;
-    if (requiereConversion && tipoCambio) {
-        try {
-            preview = calcularMontoReposicion(Number(montoPagado) || 0, monedaPago, deuda.moneda, Number(tipoCambio));
-        } catch {
-            preview = null;
-        }
+    if (requiereConversion && cotizacionOk) {
+        preview = calcularMontoReposicion(Number(montoPagado) || 0, monedaPago, deuda.moneda, cotizacionOk.venta);
     }
 
-    function onSubmit(data: ReposicionDeudaInput) {
-        if (requiereConversion && !data.tipoCambio) {
-            toast.error('Ingresá el tipo de cambio para convertir la reposición');
-            return;
-        }
+    const sinCotizacion = requiereConversion && !cotizacionOk;
 
+    function onSubmit(data: ReposicionDeudaInput) {
         startTransition(async () => {
             try {
-                await reponerDeuda(deuda.id, data);
-                toast.success('Reposición registrada');
+                const resultado = await reponerDeuda(deuda.id, data);
+                if (!resultado.ok) {
+                    toast.error(resultado.error);
+                    // Si falló por la cotización, refrescar la que se muestra.
+                    if (requiereConversion) cotizacion.refetch();
+                    return;
+                }
+                toast.success(
+                    resultado.tipoCambio
+                        ? `Reposición registrada: se acreditaron ${formatCurrency(resultado.montoAcreditado, deuda.moneda)} (blue venta ${formatCurrency(resultado.tipoCambio, 'ARS')})`
+                        : 'Reposición registrada'
+                );
                 router.refresh();
                 onSuccess?.();
             } catch (error) {
@@ -113,14 +135,30 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
             </div>
 
             {requiereConversion && (
-                <div className="space-y-1.5">
-                    <Label htmlFor="tipoCambio">Tipo de cambio (ARS por USD) *</Label>
-                    <Input id="tipoCambio" type="number" step="0.0001" placeholder="Ej: 1000" {...register('tipoCambio')} />
-                    <p className="text-sm text-muted-foreground">
-                        {preview !== null
-                            ? `Se acreditan ${formatCurrency(preview, deuda.moneda)} a la deuda.`
-                            : 'Ingresá el tipo de cambio para ver cuánto se acredita a la deuda.'}
-                    </p>
+                <div className="space-y-1 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    {cotizacion.isFetching ? (
+                        <p className="text-muted-foreground">Buscando la cotización del dólar blue…</p>
+                    ) : cotizacionOk ? (
+                        <>
+                            <p>
+                                Cotización aplicada: <span className="font-medium">{formatCurrency(cotizacionOk.venta, 'ARS')}</span>{' '}
+                                <span className="text-muted-foreground">
+                                    (dólar blue venta del {formatDate(cotizacionOk.fecha)})
+                                </span>
+                            </p>
+                            <p className="text-muted-foreground">
+                                Se acreditan {formatCurrency(preview ?? 0, deuda.moneda)} a la deuda.
+                            </p>
+                        </>
+                    ) : (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-red-600">{errorCotizacion ?? 'Falta la cotización del dólar blue.'}</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => cotizacion.refetch()}>
+                                <RefreshCw className="h-4 w-4" />
+                                Reintentar
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -139,7 +177,7 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
                 <Textarea id="notas" rows={3} {...register('notas')} />
             </div>
 
-            <Button type="submit" disabled={isPending} className="w-full">
+            <Button type="submit" disabled={isPending || sinCotizacion} className="w-full">
                 {isPending ? 'Guardando...' : 'Reponer'}
             </Button>
         </form>

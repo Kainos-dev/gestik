@@ -47,10 +47,14 @@ async function guardar(cotizaciones: CotizacionApi[], pisarExistentes: boolean) 
  * un día cerrado nunca cambia. La de hoy sale de dolarapi y sí se pisa,
  * porque se va actualizando durante el día. Nunca tira: si una API falla se
  * sigue con lo que ya hay guardado (ver faltaCotizacion en los consumidores).
+ *
+ * intervaloMs permite acortar el throttle cuando hace falta una cotización
+ * puntual que no está guardada (ej. una reposición de deuda en otra moneda,
+ * donde el usuario puede tocar "Reintentar" si la API falló).
  */
-export async function actualizarCotizacionesBlue(): Promise<void> {
+export async function actualizarCotizacionesBlue({ intervaloMs = INTERVALO_MS }: { intervaloMs?: number } = {}): Promise<void> {
     const ahora = Date.now();
-    if (ahora - (globalParaCotizacion.ultimaSyncCotizacionBlue ?? 0) < INTERVALO_MS) return;
+    if (ahora - (globalParaCotizacion.ultimaSyncCotizacionBlue ?? 0) < intervaloMs) return;
     globalParaCotizacion.ultimaSyncCotizacionBlue = ahora;
 
     try {

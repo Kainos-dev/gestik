@@ -10,7 +10,7 @@ import {
 import { GastosFijosTable } from '@/features/gastos/components/gastos-fijos-table';
 import { GastosFijosTotal } from '@/features/gastos/components/gastos-fijos-total';
 import { GastosTable } from '@/features/gastos/components/gastos-table';
-import { DeudasTable } from '@/features/deudas/components/deudas-table';
+import { DeudasPanel } from '@/features/deudas/components/deudas-panel';
 import { DeudasTotales } from '@/features/deudas/components/deudas-totales';
 import { NuevoGastoFijoDialog } from '@/features/gastos/components/new-gasto-fijo-dialog';
 import { TotalAPagarDialog } from '@/features/gastos/components/total-a-pagar-dialog';
@@ -66,7 +66,12 @@ export default async function GastosPage() {
                         <IntegrantesManagerDialog integrantes={integrantes} />
                         <NuevaDeudaDialog integrantes={integrantesActivos} />
                     </div>
-                    <DeudasTable deudas={deudas} integrantes={integrantesActivos} reposicionesPorDeuda={reposicionesPorDeuda} />
+                    <DeudasPanel
+                        deudas={deudas}
+                        integrantes={integrantes}
+                        integrantesActivos={integrantesActivos}
+                        reposicionesPorDeuda={reposicionesPorDeuda}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

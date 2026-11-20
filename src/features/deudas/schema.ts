@@ -27,13 +27,12 @@ export const DeudaSchema = z.object({
 export type DeudaInput = z.input<typeof DeudaSchema>;
 
 // Reposición: cada vez que se le devuelve plata a un integrante por una
-// deuda. tipoCambio es obligatorio sólo cuando monedaPago difiere de la
-// moneda de la deuda — eso el schema no lo puede saber (no conoce la deuda),
-// así que esa validación vive en el server action (ver reponerDeuda).
+// deuda. No lleva tipo de cambio: cuando monedaPago difiere de la moneda de
+// la deuda, el server action lo toma solo del dólar blue venta guardado para
+// esa fecha (ver reponerDeuda / resolverCotizacionBlue) — nunca del cliente.
 export const ReposicionDeudaSchema = z.object({
     montoPagado: z.coerce.number().positive('El monto debe ser mayor a 0'),
     monedaPago: z.enum(MONEDAS),
-    tipoCambio: z.coerce.number().positive().optional(),
     fecha: z.coerce.date(),
     notas: optionalString(2000),
 });

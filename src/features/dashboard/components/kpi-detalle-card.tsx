@@ -19,14 +19,16 @@ export function KpiDetalleCard({ label, value, descripcion, children }: KpiDetal
 
     return (
         <>
-            <button type="button" onClick={() => setOpen(true)} className="text-left cursor-pointer">
-                <Card className="transition-colors hover:bg-muted/50">
-                    <CardHeader className="pb-2">
+            {/* size="sm" + h-full: tarjeta compacta (Balance Mensual entra en
+                una pantalla) y todas las de una fila con el mismo alto. */}
+            <button type="button" onClick={() => setOpen(true)} className="h-full text-left cursor-pointer">
+                <Card size="sm" className="h-full gap-2 transition-colors hover:bg-muted/50">
+                    <CardHeader>
                         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="mt-auto">
                         <div className="text-2xl font-semibold">{value}</div>
-                        <p className="mt-1 text-xs text-muted-foreground">Ver detalle</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">Ver detalle</p>
                     </CardContent>
                 </Card>
             </button>

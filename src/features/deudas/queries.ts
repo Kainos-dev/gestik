@@ -3,8 +3,15 @@ import { pool } from '@/lib/db';
 import { Integrante, mapIntegrante, Deuda, mapDeuda, ReposicionDeuda, mapReposicionDeuda } from './types';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 
+// cantidad_deudas cuenta también las deudas eliminadas (soft delete): una
+// persona con deudas, aunque estén ocultas, no se puede borrar sin perder
+// el "quién puso la plata" de su historial (ver eliminarIntegrante).
 export async function getIntegrantes(): Promise<Integrante[]> {
-    const { rows } = await pool.query(`SELECT * FROM integrantes ORDER BY nombre ASC`);
+    const { rows } = await pool.query(
+        `SELECT i.*, (SELECT count(*) FROM deudas d WHERE d.integrante_id = i.id) AS cantidad_deudas
+     FROM integrantes i
+     ORDER BY i.nombre ASC`
+    );
     return rows.map(mapIntegrante);
 }
 
@@ -15,12 +22,15 @@ export async function getIntegrantesActivos(): Promise<Integrante[]> {
 
 // montoRepuesto se calcula acá (SUM de reposiciones), no se guarda en
 // deudas — mismo patrón que montoCubierto en getCargos() (cargos/queries.ts).
+// Trae también las eliminadas (eliminada_at): la pestaña Deudas separa en el
+// cliente las vistas Activas / Todas / Eliminadas sin otra ida a la base.
+// Leer anulada_at desde la fila JSON permite desplegar antes de crear la columna.
 export async function getDeudas(): Promise<Deuda[]> {
     const { rows } = await pool.query(
         `SELECT d.*, i.nombre AS integrante_nombre, COALESCE(SUM(r.monto), 0) AS monto_repuesto
      FROM deudas d
      JOIN integrantes i ON i.id = d.integrante_id
-     LEFT JOIN reposiciones_deuda r ON r.deuda_id = d.id
+     LEFT JOIN reposiciones_deuda r ON r.deuda_id = d.id AND (to_jsonb(r)->>'anulada_at') IS NULL
      GROUP BY d.id, i.nombre
      ORDER BY d.fecha DESC`
     );
@@ -32,7 +42,7 @@ export async function getDeudaById(id: string): Promise<Deuda | null> {
         `SELECT d.*, i.nombre AS integrante_nombre, COALESCE(SUM(r.monto), 0) AS monto_repuesto
      FROM deudas d
      JOIN integrantes i ON i.id = d.integrante_id
-     LEFT JOIN reposiciones_deuda r ON r.deuda_id = d.id
+     LEFT JOIN reposiciones_deuda r ON r.deuda_id = d.id AND (to_jsonb(r)->>'anulada_at') IS NULL
      WHERE d.id = $1
      GROUP BY d.id, i.nombre`,
         [id]
@@ -77,12 +87,15 @@ export interface TotalesDeudas {
 // para el balance de Gestión). Se agrupa por la moneda de la deuda (no por
 // moneda_pago de las reposiciones): "montoRepuesto" ya está en la moneda de
 // la deuda (ver monto en reposiciones_deuda, domain model), así que suma
-// derecho ahí sin mezclar ARS con USD.
+// derecho ahí sin mezclar ARS con USD. Las deudas eliminadas no cuentan acá
+// (sí cuentan sus reposiciones en Balance Mensual y Gestión, porque esa plata
+// salió de verdad de la cuenta).
 export async function getTotalesDeudas(): Promise<TotalesDeudas[]> {
     const { rows } = await pool.query(
         `WITH repuesto AS (
        SELECT deuda_id, COALESCE(SUM(monto), 0) AS monto_repuesto
-       FROM reposiciones_deuda
+       FROM reposiciones_deuda r
+       WHERE (to_jsonb(r)->>'anulada_at') IS NULL
        GROUP BY deuda_id
      )
      SELECT
@@ -92,6 +105,7 @@ export async function getTotalesDeudas(): Promise<TotalesDeudas[]> {
        COALESCE(SUM(GREATEST(0, d.monto_total - COALESCE(r.monto_repuesto, 0))), 0) AS total_pendiente
      FROM deudas d
      LEFT JOIN repuesto r ON r.deuda_id = d.id
+     WHERE d.eliminada_at IS NULL
      GROUP BY d.moneda`
     );
     const porMoneda = new Map(
@@ -114,8 +128,9 @@ export async function getTotalesDeudas(): Promise<TotalesDeudas[]> {
 export async function getTotalReposicionesDeudaMes(): Promise<TotalPorMoneda[]> {
     const { rows } = await pool.query(
         `SELECT moneda_pago AS moneda, COALESCE(SUM(monto_pagado), 0) AS total
-     FROM reposiciones_deuda
+     FROM reposiciones_deuda r
      WHERE date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)
+       AND (to_jsonb(r)->>'anulada_at') IS NULL
      GROUP BY moneda_pago`
     );
     const mapa = new Map(rows.map((r) => [r.moneda, Number(r.total)]));

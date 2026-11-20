@@ -5,6 +5,9 @@ export interface Integrante {
     id: string;
     nombre: string;
     activo: boolean;
+    // Cuántas deudas tiene asociadas (incluidas las eliminadas): decide si se
+    // puede borrar la persona. Sólo viene poblado desde getIntegrantes().
+    cantidadDeudas?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -14,6 +17,7 @@ export function mapIntegrante(row: any): Integrante {
         id: row.id,
         nombre: row.nombre,
         activo: row.activo,
+        cantidadDeudas: row.cantidad_deudas !== undefined ? Number(row.cantidad_deudas) : undefined,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };
@@ -33,6 +37,10 @@ export interface Deuda {
     montoRepuesto: number; // calculado en la query (SUM de reposiciones), no se guarda
     fecha: Date;
     notas: string | null;
+    // Eliminación lógica: si tiene fecha, la deuda no se muestra (salvo en la
+    // vista "Eliminadas") pero sus reposiciones se conservan.
+    eliminadaAt: Date | null;
+    deudaReemplazoId: string | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -48,12 +56,16 @@ export function mapDeuda(row: any): Deuda {
         montoRepuesto: Number(row.monto_repuesto ?? 0),
         fecha: row.fecha,
         notas: row.notas,
+        eliminadaAt: row.eliminada_at ?? null,
+        deudaReemplazoId: row.deuda_reemplazo_id ?? null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };
 }
 
 export interface ReposicionDeuda {
+    anuladaAt: Date | null;
+    motivoAnulacion: string | null;
     id: string;
     deudaId: string;
     monto: number; // aplicado a la deuda, en la moneda de la deuda
@@ -67,6 +79,8 @@ export interface ReposicionDeuda {
 
 export function mapReposicionDeuda(row: any): ReposicionDeuda {
     return {
+        anuladaAt: row.anulada_at ?? null,
+        motivoAnulacion: row.motivo_anulacion ?? null,
         id: row.id,
         deudaId: row.deuda_id,
         monto: Number(row.monto),

@@ -35,10 +35,10 @@ export function TarjetaSaldo({ titulo, explicacion, align, children, detalle, ac
                         setOpen(true);
                     }
                 }}
-                className="cursor-pointer text-left"
+                className="h-full cursor-pointer text-left"
             >
-                <Card className="h-full transition-colors hover:bg-muted/50">
-                    <CardHeader className="pb-2">
+                <Card size="sm" className="h-full gap-2 transition-colors hover:bg-muted/50">
+                    <CardHeader>
                         <CardTitle className="flex items-center gap-1.5 text-base font-medium text-muted-foreground">
                             {titulo}
                             <Tooltip>
@@ -57,15 +57,13 @@ export function TarjetaSaldo({ titulo, explicacion, align, children, detalle, ac
                     </CardHeader>
                     <CardContent className="space-y-1">
                         {children}
+                    </CardContent>
+                    <CardContent className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs text-muted-foreground">Ver últimos movimientos</p>
                         {acciones && (
                             // Los clicks adentro (incluido el diálogo que abren, que en el
                             // árbol de React sigue colgando de acá) no abren el historial.
-                            <div
-                                className="pt-2"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                            >
+                            <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                                 {acciones}
                             </div>
                         )}
