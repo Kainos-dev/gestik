@@ -10,7 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 
 import { ReposicionDeudaSchema, ReposicionDeudaInput } from '../schema';
-import { obtenerCotizacionBlue, reponerDeuda } from '../actions';
+import { reponerDeuda } from '../actions';
+import { obtenerCotizacionBlue } from '@/lib/cotizacion-dolar-actions';
 import { calcularMontoReposicion } from '../services';
 import { Deuda } from '../types';
 

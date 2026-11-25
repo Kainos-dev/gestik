@@ -86,3 +86,59 @@ export async function actualizarCotizacionesBlue({ intervaloMs = INTERVALO_MS }:
 export function sqlCotizacionBlueVenta(expresionFecha: string): string {
     return `(SELECT cb.venta FROM cotizaciones_dolar_blue cb WHERE cb.fecha <= (${expresionFecha})::date ORDER BY cb.fecha DESC LIMIT 1)`;
 }
+
+// ─── Cotización puntual para registrar un movimiento en otra moneda ─────────
+// (reposiciones de deuda, cobros en pesos de servicios en USD)
+
+// Fines de semana y feriados usan el último día hábil guardado (mismo
+// criterio que sqlCotizacionBlueVenta). Más atrás que esto se considera que
+// la cotización no está disponible, en vez de aplicar una vieja.
+const MAX_DIAS_SIN_COTIZACION = 5;
+// Si falta la cotización, se reintenta la API como mucho una vez por minuto.
+const INTERVALO_REINTENTO_MS = 60 * 1000;
+
+export type ResultadoCotizacion =
+    | { ok: true; venta: number; fecha: string }
+    | { ok: false; error: string };
+
+async function leerCotizacionGuardada(fecha: string): Promise<{ venta: number; fecha: string } | null> {
+    const { rows } = await pool.query(
+        `SELECT fecha::text AS fecha, venta
+     FROM cotizaciones_dolar_blue
+     WHERE fecha <= $1::date AND fecha >= $1::date - $2::int AND venta > 0
+     ORDER BY fecha DESC
+     LIMIT 1`,
+        [fecha, MAX_DIAS_SIN_COTIZACION]
+    );
+    if (!rows[0]) return null;
+    const venta = Number(rows[0].venta);
+    return Number.isFinite(venta) && venta > 0 ? { venta, fecha: rows[0].fecha } : null;
+}
+
+/**
+ * Dólar blue VENTA vigente para la fecha "YYYY-MM-DD", reutilizando la misma
+ * tabla/integración que Balance Mensual (cotizaciones_dolar_blue +
+ * actualizarCotizacionesBlue). Si no está guardada la del propio día, intenta
+ * traerla de la API; si sigue sin haber una válida, devuelve error — nunca
+ * una cotización inventada ni 0. Sólo para usar desde el servidor: quien
+ * registra el movimiento la vuelve a resolver acá en vez de confiar en la
+ * que mostró el formulario.
+ */
+export async function resolverCotizacionBlue(fecha: string): Promise<ResultadoCotizacion> {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: 'Fecha inválida' };
+
+    let cotizacion = await leerCotizacionGuardada(fecha);
+
+    if (!cotizacion || cotizacion.fecha < fecha) {
+        await actualizarCotizacionesBlue({ intervaloMs: INTERVALO_REINTENTO_MS });
+        cotizacion = (await leerCotizacionGuardada(fecha)) ?? cotizacion;
+    }
+
+    if (!cotizacion) {
+        return {
+            ok: false,
+            error: 'No se pudo obtener la cotización del dólar blue para esa fecha. Probá de nuevo en un minuto.',
+        };
+    }
+    return { ok: true, ...cotizacion };
+}

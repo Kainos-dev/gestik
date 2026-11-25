@@ -25,11 +25,24 @@ export async function getPagosByCliente(clienteId: string): Promise<Pago[]> {
     return rows.map(mapPago);
 }
 
-// Para el selector de servicio dentro del form de pagos (sólo servicios de ese cliente)
-export async function getServiciosParaSelector(clienteId: string) {
+// Para el selector de servicio dentro del form de pagos (sólo servicios de
+// ese cliente). saldo_pendiente es lo que falta cubrir del servicio en SU
+// moneda: total de cargos menos total de pagos asociados, sin bajar de 0 —
+// el mismo total que reparte el waterfall de getCargos (cargos/queries.ts).
+// excluirPagoId saca de la cuenta el pago que se está editando, para que el
+// formulario muestre el saldo "antes" de ese pago.
+export async function getServiciosParaSelector(clienteId: string, excluirPagoId?: string | null) {
     const { rows } = await pool.query(
-        `SELECT id, tipo, nombre_personalizado, moneda FROM servicios WHERE cliente_id = $1 AND estado = 'ACTIVO' ORDER BY tipo`,
-        [clienteId]
+        `SELECT s.id, s.tipo, s.nombre_personalizado, s.moneda,
+            GREATEST(0,
+              COALESCE((SELECT SUM(c.monto) FROM cargos c WHERE c.servicio_id = s.id), 0)
+              - COALESCE((SELECT SUM(p.monto) FROM pagos p
+                          WHERE p.servicio_id = s.id AND ($2::text IS NULL OR p.id <> $2)), 0)
+            )::float8 AS saldo_pendiente
+     FROM servicios s
+     WHERE s.cliente_id = $1 AND s.estado = 'ACTIVO'
+     ORDER BY s.tipo`,
+        [clienteId, excluirPagoId ?? null]
     );
     return rows;
 }

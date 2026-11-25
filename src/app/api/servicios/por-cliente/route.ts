@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
     const clienteId = request.nextUrl.searchParams.get('clienteId');
     if (!clienteId) return NextResponse.json([], { status: 400 });
 
-    const servicios = await getServiciosParaSelector(clienteId);
+    // Al editar un pago, su propio monto no cuenta para el saldo pendiente.
+    const excluirPagoId = request.nextUrl.searchParams.get('excluirPagoId');
+    const servicios = await getServiciosParaSelector(clienteId, excluirPagoId);
     return NextResponse.json(servicios);
 }

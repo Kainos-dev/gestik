@@ -6,10 +6,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTransition, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { RefreshCw } from 'lucide-react';
 
 import { PagoSchema, PagoInput, METODOS_PAGO } from '../schema';
 import { crearPago, editarPago } from '../actions';
-import { calcularMontoAcreditado } from '../services';
+import { calcularEquivalenteUsd, calcularMontoAcreditado, calcularSaldoRestante, usaCotizacionAutomatica } from '../services';
+import { obtenerCotizacionBlue } from '@/lib/cotizacion-dolar-actions';
 import { Pago } from '../types';
 import { Cliente } from '@/features/clients/types';
 
@@ -28,12 +31,14 @@ import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { MONEDAS, Moneda, formatCurrency } from '@/lib/moneda';
 import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { DatePicker } from '@/components/shared/date-picker';
+import { dateToSqlDateString, formatDate } from '@/lib/utils';
 
 interface ServicioOption {
     id: string;
     tipo: string;
     nombre_personalizado: string | null;
     moneda: Moneda;
+    saldo_pendiente: number; // en la moneda del servicio, sin contar el pago que se edita
 }
 
 function nombreServicioOption(s: ServicioOption) {
@@ -82,6 +87,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
     const monedaPago = watch('monedaPago');
     const montoPagado = watch('montoPagado');
     const tipoCambio = watch('tipoCambio');
+    const fecha = watch('fecha');
 
     // Cuando cambia el cliente, recarga la lista de servicios disponibles para asociar
     useEffect(() => {
@@ -89,11 +95,13 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             setServicios([]);
             return;
         }
-        fetch(`/api/servicios/por-cliente?clienteId=${clienteSeleccionado}`)
+        const params = new URLSearchParams({ clienteId: clienteSeleccionado });
+        if (pago) params.set('excluirPagoId', pago.id);
+        fetch(`/api/servicios/por-cliente?${params}`)
             .then((res) => res.json())
             .then(setServicios)
             .catch(() => setServicios([]));
-    }, [clienteSeleccionado]);
+    }, [clienteSeleccionado, pago]);
 
     // Al elegir un servicio, la moneda en la que pagó arranca igual a la del
     // servicio como valor por defecto (el caso más común), pero queda
@@ -108,9 +116,49 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
     }, [esEdicion, servicioElegido, setValue]);
 
     const requiereConversion = Boolean(servicioElegido) && monedaPago !== servicioElegido?.moneda;
+    // Servicio en USD cobrado en pesos: la cotización sale sola (blue venta
+    // del día del cobro) y el servidor la vuelve a resolver al guardar — ver
+    // resolverConversion en pagos/actions.ts. El caso inverso (servicio en
+    // ARS cobrado en USD) sigue pidiendo el tipo de cambio a mano.
+    const cotizacionAutomatica = servicioElegido ? usaCotizacionAutomatica(servicioElegido.moneda, monedaPago) : false;
+    const tipoCambioManual = requiereConversion && !cotizacionAutomatica;
+    const fechaSql = fecha instanceof Date && !Number.isNaN(fecha.getTime()) ? dateToSqlDateString(fecha) : null;
+
+    // Al editar un cobro ya convertido, si no cambia la fecha, el servicio ni
+    // la moneda, se conserva la cotización con la que se registró (el
+    // servidor hace el mismo chequeo): nunca se recalcula un pago histórico.
+    const cotizacionHistorica =
+        pago &&
+        pago.tipoCambio &&
+        pago.servicioId === servicioSeleccionado &&
+        pago.monedaPago === monedaPago &&
+        pago.moneda === servicioElegido?.moneda &&
+        fechaSql === dateToSqlDateString(new Date(pago.fecha))
+            ? pago.tipoCambio
+            : null;
+
+    const cotizacion = useQuery({
+        queryKey: ['cotizacion-blue-venta', fechaSql],
+        queryFn: () => obtenerCotizacionBlue(fechaSql!),
+        enabled: cotizacionAutomatica && cotizacionHistorica === null && fechaSql !== null,
+        retry: false,
+        staleTime: 5 * 60 * 1000,
+    });
+    const cotizacionOk = cotizacion.data?.ok ? cotizacion.data : null;
+    const errorCotizacion = cotizacion.isError
+        ? 'No se pudo obtener la cotización del dólar blue. Probá de nuevo.'
+        : cotizacion.data && !cotizacion.data.ok
+          ? cotizacion.data.error
+          : null;
+    const cotizacionAplicada = cotizacionHistorica ?? cotizacionOk?.venta ?? null;
+    const equivalenteUsd =
+        cotizacionAutomatica && cotizacionAplicada !== null
+            ? calcularEquivalenteUsd(Number(montoPagado) || 0, cotizacionAplicada)
+            : null;
+    const sinCotizacion = cotizacionAutomatica && cotizacionAplicada === null;
 
     let montoAcreditadoPreview: number | null = null;
-    if (requiereConversion && servicioElegido && tipoCambio) {
+    if (tipoCambioManual && servicioElegido && tipoCambio) {
         try {
             montoAcreditadoPreview = calcularMontoAcreditado(
                 Number(montoPagado) || 0,
@@ -124,20 +172,28 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
     }
 
     function onSubmit(data: PagoInput) {
-        if (requiereConversion && !data.tipoCambio) {
+        if (tipoCambioManual && !data.tipoCambio) {
             toast.error('Ingresá el tipo de cambio para convertir el pago');
             return;
         }
+        // Con cotización automática no se manda ningún tipo de cambio: lo decide el servidor.
+        const datos: PagoInput = { ...data, tipoCambio: tipoCambioManual ? data.tipoCambio : undefined };
 
         startTransition(async () => {
             try {
-                if (esEdicion && pago) {
-                    await editarPago(pago.id, data);
-                    toast.success('Pago actualizado');
-                } else {
-                    await crearPago(data);
-                    toast.success('Pago registrado');
+                const resultado = esEdicion && pago ? await editarPago(pago.id, datos) : await crearPago(datos);
+                if (!resultado.ok) {
+                    toast.error(resultado.error);
+                    // Si falló por la cotización, refrescar la que se muestra.
+                    if (cotizacionAutomatica && cotizacionHistorica === null) cotizacion.refetch();
+                    return;
                 }
+                const accion = esEdicion ? 'Pago actualizado' : 'Pago registrado';
+                toast.success(
+                    cotizacionAutomatica && resultado.tipoCambio
+                        ? `${accion}: se acreditaron ${formatCurrency(resultado.montoAcreditado, resultado.moneda)} (blue venta ${formatCurrency(resultado.tipoCambio, 'ARS')})`
+                        : accion
+                );
                 router.refresh();
                 onSuccess?.();
             } catch (error) {
@@ -261,7 +317,49 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                 </div>
             </div>
 
-            {requiereConversion && servicioElegido && (
+            {cotizacionAutomatica && servicioElegido && (
+                <div className="space-y-1 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    {cotizacionAplicada !== null ? (
+                        <>
+                            <p>
+                                Cotización aplicada:{' '}
+                                <span className="font-medium">{formatCurrency(cotizacionAplicada, 'ARS')}</span>{' '}
+                                <span className="text-muted-foreground">
+                                    {cotizacionHistorica !== null || !cotizacionOk
+                                        ? '(la registrada con este pago)'
+                                        : `(dólar blue venta del ${formatDate(cotizacionOk.fecha)})`}
+                                </span>
+                            </p>
+                            <p className="text-muted-foreground">
+                                Equivalente abonado:{' '}
+                                <span className="font-medium text-foreground">
+                                    {formatCurrency(equivalenteUsd ?? 0, servicioElegido.moneda)}
+                                </span>
+                            </p>
+                            <p className="text-muted-foreground">
+                                Saldo pendiente del servicio:{' '}
+                                {formatCurrency(
+                                    calcularSaldoRestante(servicioElegido.saldo_pendiente, equivalenteUsd ?? 0),
+                                    servicioElegido.moneda
+                                )}{' '}
+                                (de {formatCurrency(servicioElegido.saldo_pendiente, servicioElegido.moneda)})
+                            </p>
+                        </>
+                    ) : cotizacion.isFetching ? (
+                        <p className="text-muted-foreground">Buscando la cotización del dólar blue…</p>
+                    ) : (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-red-600">{errorCotizacion ?? 'Falta la cotización del dólar blue.'}</p>
+                            <Button type="button" variant="outline" size="sm" onClick={() => cotizacion.refetch()}>
+                                <RefreshCw className="h-4 w-4" />
+                                Reintentar
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {tipoCambioManual && servicioElegido && (
                 <div className="space-y-1.5">
                     <Label htmlFor="tipoCambio">Tipo de cambio (ARS por USD) *</Label>
                     <Input id="tipoCambio" type="number" step="0.0001" placeholder="Ej: 1000" {...register('tipoCambio')} />
@@ -309,7 +407,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                 <Textarea id="notas" rows={3} {...register('notas')} />
             </div>
 
-            <Button type="submit" disabled={isPending} className="w-full">
+            <Button type="submit" disabled={isPending || sinCotizacion} className="w-full">
                 {isPending ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Registrar pago'}
             </Button>
         </form>
