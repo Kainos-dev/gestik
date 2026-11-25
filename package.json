@@ -10,7 +10,8 @@
     "lint": "eslint",
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
-    "migrate:create": "node-pg-migrate create"
+    "migrate:create": "node-pg-migrate create",
+    "test": "vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -47,6 +48,7 @@
     "eslint-config-next": "16.2.11",
     "node-pg-migrate": "^9.0.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

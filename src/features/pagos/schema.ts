@@ -1,5 +1,6 @@
 // src/features/pagos/schema.ts
 import { z } from 'zod';
+import { zImporte, zImporteOpcional } from '@/lib/importe';
 import { MONEDAS } from '@/lib/moneda';
 
 const optionalString = (max: number) =>
@@ -19,12 +20,12 @@ export const PagoSchema = z.object({
     // paga en una moneda distinta a la del servicio, el server action lo
     // convierte con tipoCambio y acredita el cargo en la moneda del
     // servicio — mismo patrón que ReposicionDeudaSchema en deudas/schema.ts.
-    montoPagado: z.coerce.number().positive('El monto debe ser mayor a 0'),
+    montoPagado: zImporte({ mensaje: 'El monto debe ser mayor a 0' }),
     monedaPago: z.enum(MONEDAS),
     // Obligatorio sólo cuando monedaPago difiere de la moneda del servicio
     // asociado — el schema no conoce el servicio, esa validación vive en
     // el server action (ver resolverConversion en pagos/actions.ts).
-    tipoCambio: z.coerce.number().positive().optional(),
+    tipoCambio: zImporteOpcional({ decimales: 4, mensaje: 'Ingresá un tipo de cambio válido' }),
     metodoPago: z.enum(METODOS_PAGO),
     comprobanteUrl: z.preprocess(
         (val) => (val === '' ? undefined : val),

@@ -22,6 +22,7 @@ import { MONEDAS } from "@/lib/moneda";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ImporteInterpretadoCampo } from '@/components/shared/importe-interpretado';
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -246,8 +247,9 @@ export function ServicioForm({
           <div className="flex gap-2">
             <Input
               id="precio"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               className="flex-1"
               {...register("precio")}
             />
@@ -270,6 +272,7 @@ export function ServicioForm({
               )}
             />
           </div>
+          <ImporteInterpretadoCampo control={control} name="precio" monedaCampo="moneda" />
           {errors.precio && (
             <p className="text-sm text-red-600">{errors.precio.message}</p>
           )}

@@ -5,7 +5,7 @@ import { pool } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { PagoSchema, PagoInput } from './schema';
-import { calcularEquivalenteUsd, calcularMontoAcreditado, usaCotizacionAutomatica } from './services';
+import { calcularEquivalenteUsd, calcularMontoAcreditado, evaluarRestauracion, usaCotizacionAutomatica } from './services';
 import { Moneda } from '@/lib/moneda';
 import { resolverCotizacionBlue } from '@/lib/cotizacion-dolar';
 import { dateToSqlDateString } from '@/lib/utils';
@@ -167,28 +167,61 @@ export async function crearPago(data: PagoInput): Promise<ResultadoPago> {
     return { ok: true, montoAcreditado: conversion.monto, moneda: conversion.moneda, tipoCambio: conversion.tipoCambio };
 }
 
+
+// Editar: importe, fecha, moneda, método, cliente y servicio. El servicio
+// tiene que ser del cliente elegido (lo verifica resolverConversion), y un
+// servicio en USD cobrado en ARS conserva su cotización histórica salvo que
+// cambie la fecha, el servicio o la moneda. Cada edición deja la fila
+// completa de antes y de después en historial_ediciones.
+//
+// El estado de los cargos, el saldo del servicio, la caja, Balance Mensual y
+// Gestión se recalculan solos: todos leen pagos en vivo, nada queda copiado.
 export async function editarPago(id: string, data: PagoInput): Promise<ResultadoPago> {
     const resultado = PagoSchema.safeParse(data);
     if (!resultado.success) return { ok: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
     const parsed = resultado.data;
 
+    let anterior: (PagoAnterior & { cliente_id: string; updated_at: Date }) | undefined;
+    let conversion: Conversion;
     try {
         const { rows } = await pool.query(
-            `SELECT servicio_id, fecha, moneda, moneda_pago, tipo_cambio FROM pagos WHERE id = $1 AND cliente_id = $2`,
-            [id, parsed.clienteId]
+            `SELECT cliente_id, servicio_id, fecha, moneda, moneda_pago, tipo_cambio, updated_at FROM pagos WHERE id = $1`,
+            [id]
         );
-        const anterior: PagoAnterior | undefined = rows[0];
-        if (!anterior) return { ok: false, error: 'El pago no existe' };
+        anterior = rows[0];
+        if (!anterior) return { ok: false, error: 'El cobro no existe o fue anulado' };
+        conversion = await resolverConversion(parsed, anterior);
+    } catch (error) {
+        console.error('Error al resolver la conversión del pago:', error);
+        return { ok: false, error: 'No se pudo calcular el cobro. Probá de nuevo.' };
+    }
+    if (!conversion.ok) return conversion;
 
-        const conversion = await resolverConversion(parsed, anterior);
-        if (!conversion.ok) return conversion;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // Guarda la fila "antes" sólo si nadie la cambió (ni la anuló) desde
+        // que se leyó arriba: si no, se aborta en vez de pisar otro cambio.
+        const historial = await client.query(
+            `INSERT INTO historial_ediciones (tabla, registro_id, datos_anteriores, datos_nuevos)
+       SELECT 'pagos', p.id, to_jsonb(p), '{}'::jsonb
+       FROM pagos p
+       WHERE p.id = $1 AND p.updated_at = $2
+       RETURNING id`,
+            [id, anterior.updated_at]
+        );
+        if (!historial.rowCount) {
+            await client.query('ROLLBACK');
+            return { ok: false, error: 'El cobro cambió o se anuló mientras lo editabas. Volvé a abrirlo.' };
+        }
 
-        await pool.query(
+        await client.query(
             `UPDATE pagos
-       SET servicio_id = $1, fecha = $2, monto = $3, moneda = $4, moneda_pago = $5, monto_pagado = $6,
-           tipo_cambio = $7, metodo_pago = $8, comprobante_url = $9, notas = $10, updated_at = now()
-       WHERE id = $11`,
+       SET cliente_id = $1, servicio_id = $2, fecha = $3, monto = $4, moneda = $5, moneda_pago = $6, monto_pagado = $7,
+           tipo_cambio = $8, metodo_pago = $9, comprobante_url = $10, notas = $11, updated_at = now()
+       WHERE id = $12`,
             [
+                parsed.clienteId,
                 parsed.servicioId ?? null,
                 parsed.fecha,
                 conversion.monto,
@@ -202,25 +235,155 @@ export async function editarPago(id: string, data: PagoInput): Promise<Resultado
                 id,
             ]
         );
-
-        revalidarPagos(parsed.clienteId);
-        return { ok: true, montoAcreditado: conversion.monto, moneda: conversion.moneda, tipoCambio: conversion.tipoCambio };
+        await client.query(
+            `UPDATE historial_ediciones SET datos_nuevos = (SELECT to_jsonb(p) FROM pagos p WHERE p.id = $1) WHERE id = $2`,
+            [id, historial.rows[0].id]
+        );
+        await client.query('COMMIT');
     } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
         console.error('Error al editar el pago:', error);
-        return { ok: false, error: 'Ocurrió un error al guardar el pago' };
+        return { ok: false, error: 'Ocurrió un error al guardar el cobro' };
+    } finally {
+        client.release();
     }
+
+    revalidarPagos(parsed.clienteId);
+    if (anterior.cliente_id !== parsed.clienteId) revalidarPagos(anterior.cliente_id);
+    return { ok: true, montoAcreditado: conversion.monto, moneda: conversion.moneda, tipoCambio: conversion.tipoCambio };
 }
 
-// Borrar un pago no requiere tocar cargos aparte: el estado y "cubierto" de
-// cada cargo se recalculan en vivo en cada request (waterfall sobre los
-// pagos existentes, ver getCargos en cargos/queries.ts), así que sacar la
-// fila alcanza para que todo — cargos, saldos, KPIs — vuelva a como estaba.
-export async function eliminarPago(id: string) {
-    const { rows } = await pool.query(`DELETE FROM pagos WHERE id = $1 RETURNING cliente_id`, [id]);
-    const clienteId = rows[0]?.cliente_id;
+// ─── Anulación y restauración ───────────────────────────────────────────────
+//
+// Anular saca el cobro de "pagos" y guarda la fila completa (to_jsonb, sin
+// pasar por JavaScript: los numeric conservan toda su precisión) en
+// registros_anulados, en una sola transacción. Como todo lo demás — cargos,
+// saldo del servicio, caja, Balance Mensual, Gestión — se calcula en vivo
+// desde "pagos", el cobro deja de contar en todos lados a la vez, sin que
+// ninguna consulta necesite un filtro nuevo. Restaurar lo vuelve a insertar
+// idéntico (mismo id, fecha, montos y cotización histórica).
+//
+// No se puede contar dos veces: la fila está o en pagos o archivada (nunca
+// en los dos lados), el índice único registros_anulados_vigente_unico impide
+// archivarla dos veces, y las filas se bloquean (FOR UPDATE) mientras dura
+// cada operación.
 
-    revalidatePath('/pagos');
-    revalidatePath('/gestion');
-    revalidatePath('/dashboard');
-    if (clienteId) revalidatePath(`/clientes/${clienteId}`);
+export type ResultadoAccion = { ok: true } | { ok: false; error: string };
+
+const MotivoSchema = z
+    .string({ error: 'Escribí el motivo de la anulación' })
+    .trim()
+    .min(3, 'Escribí el motivo de la anulación')
+    .max(500, 'El motivo es demasiado largo');
+
+export async function anularPago(id: string, motivo: string): Promise<ResultadoAccion> {
+    const motivoValido = MotivoSchema.safeParse(motivo);
+    if (!motivoValido.success) return { ok: false, error: motivoValido.error.issues[0]?.message ?? 'Motivo inválido' };
+
+    const client = await pool.connect();
+    let clienteId: string;
+    try {
+        await client.query('BEGIN');
+        const { rows } = await client.query(`SELECT cliente_id FROM pagos WHERE id = $1 FOR UPDATE`, [id]);
+        if (!rows[0]) {
+            await client.query('ROLLBACK');
+            return { ok: false, error: 'Ese cobro ya fue anulado o no existe' };
+        }
+        clienteId = rows[0].cliente_id;
+
+        await client.query(
+            `INSERT INTO registros_anulados (tabla, registro_id, datos, motivo)
+       SELECT 'pagos', p.id, to_jsonb(p), $2 FROM pagos p WHERE p.id = $1`,
+            [id, motivoValido.data]
+        );
+        const borrado = await client.query(`DELETE FROM pagos WHERE id = $1`, [id]);
+        if (borrado.rowCount !== 1) throw new Error('No se pudo sacar el cobro de pagos');
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        // 23505: el índice único dice que ya estaba archivado (doble anulación simultánea).
+        if ((error as { code?: string }).code === '23505') return { ok: false, error: 'Ese cobro ya fue anulado' };
+        console.error('Error al anular el cobro:', error);
+        return { ok: false, error: 'Ocurrió un error al anular el cobro' };
+    } finally {
+        client.release();
+    }
+
+    revalidarPagos(clienteId);
+    return { ok: true };
+}
+
+export async function restaurarPago(registroAnuladoId: string): Promise<ResultadoAccion> {
+    const client = await pool.connect();
+    let clienteId: string;
+    try {
+        await client.query('BEGIN');
+        const { rows } = await client.query(
+            `SELECT registro_id, restaurado_at,
+              datos->>'cliente_id' AS cliente_id, datos->>'servicio_id' AS servicio_id,
+              datos->>'moneda' AS moneda, datos->>'moneda_pago' AS moneda_pago,
+              datos->>'monto_pagado' AS monto_pagado, datos->>'fecha' AS fecha
+       FROM registros_anulados
+       WHERE id = $1 AND tabla = 'pagos'
+       FOR UPDATE`,
+            [registroAnuladoId]
+        );
+        const archivado = rows[0];
+        if (!archivado) {
+            await client.query('ROLLBACK');
+            return { ok: false, error: 'No se encontró el cobro anulado' };
+        }
+        clienteId = archivado.cliente_id;
+
+        const ctx = await client.query(
+            `SELECT
+         EXISTS (SELECT 1 FROM pagos WHERE id = $1) AS cobro_ya_activo,
+         EXISTS (SELECT 1 FROM clientes WHERE id = $2) AS cliente_existe,
+         (SELECT moneda FROM servicios WHERE id = $3::text) AS servicio_moneda,
+         (SELECT cliente_id FROM servicios WHERE id = $3::text) AS servicio_cliente_id,
+         EXISTS (
+           SELECT 1 FROM pagos
+           WHERE cliente_id = $2 AND servicio_id IS NOT DISTINCT FROM $3::text
+             AND fecha = $4::timestamptz AND moneda_pago = $5 AND monto_pagado = $6::numeric
+         ) AS hay_cobro_igual_activo`,
+            [archivado.registro_id, archivado.cliente_id, archivado.servicio_id, archivado.fecha, archivado.moneda_pago, archivado.monto_pagado]
+        );
+        const c = ctx.rows[0];
+        const evaluacion = evaluarRestauracion(
+            { clienteId: archivado.cliente_id, servicioId: archivado.servicio_id, moneda: archivado.moneda },
+            {
+                yaRestaurado: archivado.restaurado_at !== null,
+                cobroYaActivo: c.cobro_ya_activo,
+                clienteExiste: c.cliente_existe,
+                servicio: c.servicio_moneda ? { clienteId: c.servicio_cliente_id, moneda: c.servicio_moneda } : null,
+                hayCobroIgualActivo: c.hay_cobro_igual_activo,
+            }
+        );
+        if (!evaluacion.ok) {
+            await client.query('ROLLBACK');
+            return evaluacion;
+        }
+
+        // Vuelve idéntico (jsonb → fila de pagos, sin pasar por JavaScript); sólo updated_at marca la restauración.
+        await client.query(
+            `INSERT INTO pagos
+       SELECT * FROM jsonb_populate_record(
+         NULL::pagos,
+         (SELECT datos || jsonb_build_object('updated_at', now()) FROM registros_anulados WHERE id = $1)
+       )`,
+            [registroAnuladoId]
+        );
+        await client.query(`UPDATE registros_anulados SET restaurado_at = now() WHERE id = $1`, [registroAnuladoId]);
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        if ((error as { code?: string }).code === '23505') return { ok: false, error: 'Ese cobro ya está restaurado' };
+        console.error('Error al restaurar el cobro:', error);
+        return { ok: false, error: 'Ocurrió un error al restaurar el cobro' };
+    } finally {
+        client.release();
+    }
+
+    revalidarPagos(clienteId);
+    return { ok: true };
 }

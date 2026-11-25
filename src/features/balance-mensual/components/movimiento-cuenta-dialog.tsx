@@ -13,6 +13,7 @@ import { registrarMovimientoCuenta } from '../actions';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImporteInterpretadoCampo } from '@/components/shared/importe-interpretado';
 import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/shared/date-picker';
 import {
@@ -102,7 +103,8 @@ function MovimientoCuentaForm({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="monto">Monto (ARS) *</Label>
-                    <Input id="monto" type="number" step="0.01" placeholder="Ej: 50000" {...register('monto')} />
+                    <Input id="monto" type="text" inputMode="decimal" autoComplete="off" placeholder="Ej: 50.000" {...register('monto')} />
+                    <ImporteInterpretadoCampo control={control} name="monto" moneda="ARS" />
                     {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
                 </div>
                 <div className="space-y-1.5">

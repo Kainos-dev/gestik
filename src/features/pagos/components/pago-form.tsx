@@ -31,6 +31,8 @@ import { METODO_PAGO_LABELS, TIPO_SERVICIO_LABELS } from '@/lib/constants';
 import { MONEDAS, Moneda, formatCurrency } from '@/lib/moneda';
 import { ClienteColorDot } from '@/components/shared/cliente-color-dot';
 import { DatePicker } from '@/components/shared/date-picker';
+import { ImporteInterpretado } from '@/components/shared/importe-interpretado';
+import { importeOnull } from '@/lib/importe';
 import { dateToSqlDateString, formatDate } from '@/lib/utils';
 
 interface ServicioOption {
@@ -49,12 +51,21 @@ interface PagoFormProps {
     clientes: Cliente[];
     pago?: Pago;
     clienteIdFijo?: string; // cuando se registra desde el detalle de un cliente
+    clienteIdInicial?: string; // precargado pero editable (el cliente filtrado en Cobros)
     servicioIdFijo?: string; // cuando se registra desde un cargo puntual
     montoSugerido?: number; // precarga el monto (ej. el saldo pendiente del cargo)
     onSuccess?: () => void;
 }
 
-export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoSugerido, onSuccess }: PagoFormProps) {
+export function PagoForm({
+    clientes,
+    pago,
+    clienteIdFijo,
+    clienteIdInicial,
+    servicioIdFijo,
+    montoSugerido,
+    onSuccess,
+}: PagoFormProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const esEdicion = Boolean(pago);
@@ -70,7 +81,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
     } = useForm<PagoInput>({
         resolver: zodResolver(PagoSchema),
         defaultValues: {
-            clienteId: pago?.clienteId ?? clienteIdFijo ?? '',
+            clienteId: pago?.clienteId ?? clienteIdFijo ?? clienteIdInicial ?? '',
             servicioId: pago?.servicioId ?? servicioIdFijo ?? '',
             fecha: pago?.fecha ?? new Date(),
             montoPagado: pago?.montoPagado ?? montoSugerido ?? 0,
@@ -153,18 +164,19 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
     const cotizacionAplicada = cotizacionHistorica ?? cotizacionOk?.venta ?? null;
     const equivalenteUsd =
         cotizacionAutomatica && cotizacionAplicada !== null
-            ? calcularEquivalenteUsd(Number(montoPagado) || 0, cotizacionAplicada)
+            ? calcularEquivalenteUsd(importeOnull(montoPagado) ?? 0, cotizacionAplicada)
             : null;
     const sinCotizacion = cotizacionAutomatica && cotizacionAplicada === null;
 
     let montoAcreditadoPreview: number | null = null;
-    if (tipoCambioManual && servicioElegido && tipoCambio) {
+    const tipoCambioInterpretado = importeOnull(tipoCambio, { decimales: 4 });
+    if (tipoCambioManual && servicioElegido && tipoCambioInterpretado) {
         try {
             montoAcreditadoPreview = calcularMontoAcreditado(
-                Number(montoPagado) || 0,
+                importeOnull(montoPagado) ?? 0,
                 monedaPago,
                 servicioElegido.moneda,
-                Number(tipoCambio)
+                tipoCambioInterpretado
             );
         } catch {
             montoAcreditadoPreview = null;
@@ -188,7 +200,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                     if (cotizacionAutomatica && cotizacionHistorica === null) cotizacion.refetch();
                     return;
                 }
-                const accion = esEdicion ? 'Pago actualizado' : 'Pago registrado';
+                const accion = esEdicion ? 'Cobro actualizado' : 'Cobro registrado';
                 toast.success(
                     cotizacionAutomatica && resultado.tipoCambio
                         ? `${accion}: se acreditaron ${formatCurrency(resultado.montoAcreditado, resultado.moneda)} (blue venta ${formatCurrency(resultado.tipoCambio, 'ARS')})`
@@ -197,7 +209,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                 router.refresh();
                 onSuccess?.();
             } catch (error) {
-                toast.error('Ocurrió un error al guardar el pago');
+                toast.error('Ocurrió un error al guardar el cobro');
                 console.error(error);
             }
         });
@@ -212,7 +224,14 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                         name="clienteId"
                         control={control}
                         render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange} disabled={esEdicion}>
+                            <Select
+                                value={field.value}
+                                onValueChange={(value) => {
+                                    // El servicio elegido era del cliente anterior: hay que volver a elegirlo.
+                                    if (value !== field.value) setValue('servicioId', '');
+                                    field.onChange(value);
+                                }}
+                            >
                                 <SelectTrigger id="clienteId">
                                     <SelectValue placeholder="Seleccionar cliente">
                                         {(value: string) => {
@@ -276,9 +295,16 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <Label htmlFor="montoPagado">Monto pagado *</Label>
+                    <Label htmlFor="montoPagado">Monto recibido *</Label>
                     <div className="flex gap-2">
-                        <Input id="montoPagado" type="number" step="0.01" className="flex-1" {...register('montoPagado')} />
+                        <Input
+                            id="montoPagado"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            className="flex-1"
+                            {...register('montoPagado')}
+                        />
                         <Controller
                             name="monedaPago"
                             control={control}
@@ -303,6 +329,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
                             Misma moneda que el servicio asociado ({servicioElegido.moneda}).
                         </p>
                     )}
+                    <ImporteInterpretado valor={montoPagado} moneda={monedaPago} />
                     {errors.montoPagado && <p className="text-sm text-red-600">{errors.montoPagado.message}</p>}
                 </div>
 
@@ -362,7 +389,15 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             {tipoCambioManual && servicioElegido && (
                 <div className="space-y-1.5">
                     <Label htmlFor="tipoCambio">Tipo de cambio (ARS por USD) *</Label>
-                    <Input id="tipoCambio" type="number" step="0.0001" placeholder="Ej: 1000" {...register('tipoCambio')} />
+                    <Input
+                        id="tipoCambio"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder="Ej: 1.500"
+                        {...register('tipoCambio')}
+                    />
+                    <ImporteInterpretado valor={tipoCambio} moneda="ARS" decimales={4} etiqueta="Se aplica" />
                     <p className="text-sm text-muted-foreground">
                         {montoAcreditadoPreview !== null
                             ? `Se acreditan ${formatCurrency(montoAcreditadoPreview, servicioElegido.moneda)} al servicio (en ${servicioElegido.moneda}).`
@@ -408,7 +443,7 @@ export function PagoForm({ clientes, pago, clienteIdFijo, servicioIdFijo, montoS
             </div>
 
             <Button type="submit" disabled={isPending || sinCotizacion} className="w-full">
-                {isPending ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Registrar pago'}
+                {isPending ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Registrar cobro'}
             </Button>
         </form>
     );

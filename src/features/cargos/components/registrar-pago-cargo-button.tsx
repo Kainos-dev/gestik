@@ -30,10 +30,10 @@ export function RegistrarPagoCargoButton({
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button variant="outline" size="sm">Registrar pago</Button>} />
+            <DialogTrigger render={<Button variant="outline" size="sm">Registrar cobro</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Registrar pago</DialogTitle>
+                    <DialogTitle>Registrar cobro</DialogTitle>
                 </DialogHeader>
                 <PagoForm
                     clientes={clientes}

@@ -13,6 +13,7 @@ import { MesPendienteDeReparto } from '../types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImporteInterpretadoCampo } from '@/components/shared/importe-interpretado';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/moneda';
 
@@ -36,6 +37,7 @@ export function TipoCambioMensualForm({ mes, onSuccess }: { mes: MesPendienteDeR
 
     const {
         register,
+        control,
         handleSubmit,
         formState: { errors },
     } = useForm<TipoCambioMensualInput>({
@@ -67,7 +69,8 @@ export function TipoCambioMensualForm({ mes, onSuccess }: { mes: MesPendienteDeR
 
             <div className="space-y-1.5">
                 <Label htmlFor="tipoCambio">Tipo de cambio (ARS por USD) *</Label>
-                <Input id="tipoCambio" type="number" step="0.0001" placeholder="Ej: 1000" {...register('tipoCambio')} />
+                <Input id="tipoCambio" type="text" inputMode="decimal" autoComplete="off" placeholder="Ej: 1.500" {...register('tipoCambio')} />
+                <ImporteInterpretadoCampo control={control} name="tipoCambio" moneda="ARS" decimales={4} etiqueta="Se aplica" />
                 {errors.tipoCambio && <p className="text-sm text-red-600">{errors.tipoCambio.message}</p>}
             </div>
 

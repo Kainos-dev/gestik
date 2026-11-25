@@ -7,6 +7,8 @@ import { Servicio } from '../types';
 import { renovarServicio } from '../actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImporteInterpretado } from '@/components/shared/importe-interpretado';
+import { parsearImporte } from '@/lib/importe';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { TIPO_SERVICIO_LABELS } from '@/lib/constants';
@@ -29,11 +31,12 @@ export function RenovarServicioDialog({ servicio }: { servicio: Servicio }) {
     }
 
     function handleRenovar() {
-        const nuevoPrecio = Number(precio);
-        if (!Number.isFinite(nuevoPrecio) || nuevoPrecio <= 0) {
-            toast.error('El precio debe ser un número mayor a 0');
+        const interpretado = parsearImporte(precio);
+        if (!interpretado.ok || interpretado.valor <= 0) {
+            toast.error(interpretado.ok ? 'El precio debe ser mayor a 0' : interpretado.error);
             return;
         }
+        const nuevoPrecio = interpretado.valor;
 
         startTransition(async () => {
             try {
@@ -64,11 +67,13 @@ export function RenovarServicioDialog({ servicio }: { servicio: Servicio }) {
                         <Label htmlFor="nuevoPrecio">Precio ({servicio.moneda})</Label>
                         <Input
                             id="nuevoPrecio"
-                            type="number"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
                             value={precio}
                             onChange={(e) => setPrecio(e.target.value)}
                         />
+                        <ImporteInterpretado valor={precio} moneda={servicio.moneda} etiqueta="Nuevo precio" />
                         <p className="text-xs text-muted-foreground">
                             Dejalo igual para renovar con el mismo precio, o cambialo si corresponde un ajuste.
                         </p>

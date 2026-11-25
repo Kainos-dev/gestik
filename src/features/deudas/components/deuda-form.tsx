@@ -13,6 +13,7 @@ import { Deuda, Integrante } from '../types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImporteInterpretadoCampo } from '@/components/shared/importe-interpretado';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -115,7 +116,7 @@ export function DeudaForm({ deuda, integrantes, onSuccess }: DeudaFormProps) {
             <div className="space-y-1.5">
                 <Label htmlFor="montoTotal">Monto total *</Label>
                 <div className="flex gap-2">
-                    <Input id="montoTotal" type="number" step="0.01" className="flex-1" {...register('montoTotal')} />
+                    <Input id="montoTotal" type="text" inputMode="decimal" autoComplete="off" className="flex-1" {...register('montoTotal')} />
                     <Controller
                         name="moneda"
                         control={control}
@@ -135,6 +136,7 @@ export function DeudaForm({ deuda, integrantes, onSuccess }: DeudaFormProps) {
                         )}
                     />
                 </div>
+                <ImporteInterpretadoCampo control={control} name="montoTotal" monedaCampo="moneda" />
                 {errors.montoTotal && <p className="text-sm text-red-600">{errors.montoTotal.message}</p>}
             </div>
 

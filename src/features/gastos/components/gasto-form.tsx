@@ -13,6 +13,7 @@ import { Gasto } from '../types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImporteInterpretadoCampo } from '@/components/shared/importe-interpretado';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -106,7 +107,7 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
                 <div className="space-y-1.5">
                     <Label htmlFor="monto">Monto *</Label>
                     <div className="flex gap-2">
-                        <Input id="monto" type="number" step="0.01" className="flex-1" {...register('monto')} />
+                        <Input id="monto" type="text" inputMode="decimal" autoComplete="off" className="flex-1" {...register('monto')} />
                         <Controller
                             name="moneda"
                             control={control}
@@ -126,6 +127,7 @@ export function GastoForm({ gasto, onSuccess }: GastoFormProps) {
                             )}
                         />
                     </div>
+                    <ImporteInterpretadoCampo control={control} name="monto" monedaCampo="moneda" />
                     {errors.monto && <p className="text-sm text-red-600">{errors.monto.message}</p>}
                 </div>
             </div>

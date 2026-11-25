@@ -7,17 +7,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { PagoForm } from './pago-form';
 import { Cliente } from '@/features/clients/types';
 
-export function NuevoPagoDialog({ clientes, clienteIdFijo }: { clientes: Cliente[]; clienteIdFijo?: string }) {
+export function NuevoPagoDialog({
+    clientes,
+    clienteIdFijo,
+    clienteIdInicial,
+}: {
+    clientes: Cliente[];
+    clienteIdFijo?: string; // no se puede cambiar (ej. desde el detalle de un cliente)
+    clienteIdInicial?: string; // precargado pero editable (ej. el cliente filtrado en Cobros)
+}) {
     const [open, setOpen] = useState(false);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button>+ Registrar pago</Button>} />
+            <DialogTrigger render={<Button>+ Registrar cobro</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Registrar pago</DialogTitle>
+                    <DialogTitle>Registrar cobro</DialogTitle>
                 </DialogHeader>
-                <PagoForm clientes={clientes} clienteIdFijo={clienteIdFijo} onSuccess={() => setOpen(false)} />
+                {/* Se monta al abrir, para que arranque limpio y con el cliente filtrado en ese momento. */}
+                {open && (
+                    <PagoForm
+                        clientes={clientes}
+                        clienteIdFijo={clienteIdFijo}
+                        clienteIdInicial={clienteIdInicial}
+                        onSuccess={() => setOpen(false)}
+                    />
+                )}
             </DialogContent>
         </Dialog>
     );

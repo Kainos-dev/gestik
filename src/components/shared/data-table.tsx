@@ -28,6 +28,8 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchPlaceholder?: string;
   searchColumn?: string;
+  // false oculta el buscador de texto (ej. cuando la tabla se filtra con un selector propio)
+  buscador?: boolean;
 }
 
 
@@ -39,6 +41,7 @@ export function DataTable<TData, TValue>({
   data,
   searchPlaceholder = "Buscar...",
   searchColumn,
+  buscador = true,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -57,12 +60,14 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-3">
-      <Input
-        placeholder={searchPlaceholder}
-        value={globalFilter}
-        onChange={(e) => setGlobalFilter(e.target.value)}
-        className="max-w-sm"
-      />
+      {buscador && (
+        <Input
+          placeholder={searchPlaceholder}
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
+        />
+      )}
 
       <div className="rounded-md border">
         <Table>

@@ -55,3 +55,54 @@ export function calcularEquivalenteUsd(montoArs: number, cotizacion: number): nu
 export function calcularSaldoRestante(saldoPendiente: number, equivalente: number): number {
     return Math.max(0, Math.round((saldoPendiente - equivalente) * 100) / 100);
 }
+
+// ─── Anulación y restauración ───────────────────────────────────────────────
+
+/** Lo mínimo del cobro archivado que hace falta para decidir si se puede restaurar. */
+export interface CobroArchivado {
+    clienteId: string;
+    servicioId: string | null;
+    moneda: Moneda; // moneda en la que se acreditó al servicio
+}
+
+/** Estado actual de la base, consultado dentro de la transacción de restauración. */
+export interface ContextoRestauracion {
+    yaRestaurado: boolean;
+    cobroYaActivo: boolean; // existe en pagos una fila con el mismo id
+    clienteExiste: boolean;
+    servicio: { clienteId: string; moneda: Moneda } | null; // null si no existe (o el cobro no tenía)
+    hayCobroIgualActivo: boolean; // mismo cliente/servicio/fecha/monto/moneda: probablemente se volvió a cargar
+}
+
+/**
+ * Decide si restaurar un cobro anulado es seguro. Restaurar lo vuelve a
+ * insertar tal cual (mismo monto acreditado y misma cotización histórica),
+ * así que se rechaza cualquier situación en la que eso lo contaría dos veces
+ * o lo acreditaría en una moneda que el servicio ya no usa.
+ */
+export function evaluarRestauracion(
+    cobro: CobroArchivado,
+    ctx: ContextoRestauracion
+): { ok: true } | { ok: false; error: string } {
+    if (ctx.yaRestaurado || ctx.cobroYaActivo) return { ok: false, error: 'Ese cobro ya está restaurado' };
+    if (!ctx.clienteExiste) return { ok: false, error: 'El cliente del cobro ya no existe' };
+    if (cobro.servicioId) {
+        if (!ctx.servicio) return { ok: false, error: 'El servicio del cobro ya no existe. Registralo de nuevo sin servicio.' };
+        if (ctx.servicio.clienteId !== cobro.clienteId) {
+            return { ok: false, error: 'El servicio del cobro ahora pertenece a otro cliente' };
+        }
+        if (ctx.servicio.moneda !== cobro.moneda) {
+            return {
+                ok: false,
+                error: `El servicio ahora se cobra en ${ctx.servicio.moneda} y el cobro se acreditó en ${cobro.moneda}. Registralo de nuevo.`,
+            };
+        }
+    }
+    if (ctx.hayCobroIgualActivo) {
+        return {
+            ok: false,
+            error: 'Ya hay un cobro igual activo (mismo cliente, servicio, fecha y monto). Restaurarlo lo contaría dos veces.',
+        };
+    }
+    return { ok: true };
+}

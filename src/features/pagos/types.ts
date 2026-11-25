@@ -44,3 +44,21 @@ export function mapPago(row: any): Pago {
         updatedAt: row.updated_at,
     };
 }
+// Un cobro anulado: la fila original completa (tal cual estaba en pagos,
+// con su cotización histórica) más los datos de la anulación. Vive en
+// registros_anulados hasta que se restaura — ver anularPago/restaurarPago.
+export interface PagoAnulado {
+    registroAnuladoId: string;
+    motivo: string;
+    anuladoAt: Date;
+    pago: Pago;
+}
+
+export function mapPagoAnulado(row: Parameters<typeof mapPago>[0]): PagoAnulado {
+    return {
+        registroAnuladoId: row.registro_anulado_id,
+        motivo: row.motivo,
+        anuladoAt: row.anulado_at,
+        pago: mapPago(row),
+    };
+}

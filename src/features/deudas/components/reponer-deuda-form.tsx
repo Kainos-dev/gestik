@@ -17,6 +17,7 @@ import { Deuda } from '../types';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImporteInterpretadoCampo } from '@/components/shared/importe-interpretado';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -27,6 +28,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { MONEDAS, formatCurrency } from '@/lib/moneda';
+import { importeOnull } from '@/lib/importe';
 import { dateToSqlDateString, formatDate } from '@/lib/utils';
 import { DatePicker } from '@/components/shared/date-picker';
 
@@ -73,7 +75,7 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
 
     let preview: number | null = null;
     if (requiereConversion && cotizacionOk) {
-        preview = calcularMontoReposicion(Number(montoPagado) || 0, monedaPago, deuda.moneda, cotizacionOk.venta);
+        preview = calcularMontoReposicion(importeOnull(montoPagado) ?? 0, monedaPago, deuda.moneda, cotizacionOk.venta);
     }
 
     const sinCotizacion = requiereConversion && !cotizacionOk;
@@ -112,7 +114,7 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
             <div className="space-y-1.5">
                 <Label htmlFor="montoPagado">Monto que se repone *</Label>
                 <div className="flex gap-2">
-                    <Input id="montoPagado" type="number" step="0.01" className="flex-1" {...register('montoPagado')} />
+                    <Input id="montoPagado" type="text" inputMode="decimal" autoComplete="off" className="flex-1" {...register('montoPagado')} />
                     <Controller
                         name="monedaPago"
                         control={control}
@@ -132,6 +134,7 @@ export function ReponerDeudaForm({ deuda, onSuccess }: { deuda: Deuda; onSuccess
                         )}
                     />
                 </div>
+                <ImporteInterpretadoCampo control={control} name="montoPagado" monedaCampo="monedaPago" />
                 {errors.montoPagado && <p className="text-sm text-red-600">{errors.montoPagado.message}</p>}
             </div>
 
