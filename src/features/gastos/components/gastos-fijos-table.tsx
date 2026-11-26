@@ -7,7 +7,9 @@ import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 import { GastoFijo } from '../types';
 import { registrarGastoDelMes, eliminarGastoFijo } from '../actions';
-import { calcularEstadoPagoGastoFijo } from '../services';
+import { calcularEstadoPagoGastoFijo, equivalenteEnPesos } from '../services';
+import type { CotizacionVigente } from '@/lib/cotizacion-dolar';
+import { formatCurrency } from '@/lib/moneda';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EditarGastoFijoDialog } from './edit-gasto-fijo-dialog';
@@ -80,7 +82,24 @@ function AccionEliminar({ gastoFijo }: { gastoFijo: GastoFijo }) {
     );
 }
 
-const columns: ColumnDef<GastoFijo>[] = [
+// Monto original y, si es en USD, su equivalente estimado en pesos con el blue
+// venta vigente (se recalcula con cada cotización; el monto en USD no cambia).
+function CeldaMonto({ gastoFijo, cotizacion }: { gastoFijo: GastoFijo; cotizacion: CotizacionVigente | null }) {
+    if (gastoFijo.moneda !== 'USD') return <MontoConMoneda monto={gastoFijo.monto} moneda={gastoFijo.moneda} />;
+    const ars = equivalenteEnPesos(gastoFijo.monto, 'USD', cotizacion?.venta ?? null);
+    return (
+        <div>
+            <MontoConMoneda monto={gastoFijo.monto} moneda="USD" />
+            <p className="text-xs text-muted-foreground" title={cotizacion ? `Blue venta ${formatCurrency(cotizacion.venta, 'ARS')}` : undefined}>
+                {ars !== null
+                    ? `≈ ${formatCurrency(ars, 'ARS')}`
+                    : 'Sin cotización'}
+            </p>
+        </div>
+    );
+}
+
+const columnas = (cotizacion: CotizacionVigente | null): ColumnDef<GastoFijo>[] => [
     { accessorKey: 'nombre', header: 'Nombre' },
     {
         accessorKey: 'categoria',
@@ -90,7 +109,7 @@ const columns: ColumnDef<GastoFijo>[] = [
     {
         accessorKey: 'monto',
         header: 'Monto',
-        cell: ({ row }) => <MontoConMoneda monto={row.original.monto} moneda={row.original.moneda} />,
+        cell: ({ row }) => <CeldaMonto gastoFijo={row.original} cotizacion={cotizacion} />,
     },
     {
         accessorKey: 'frecuencia',
@@ -129,6 +148,12 @@ const columns: ColumnDef<GastoFijo>[] = [
     },
 ];
 
-export function GastosFijosTable({ gastosFijos }: { gastosFijos: GastoFijo[] }) {
-    return <DataTable columns={columns} data={gastosFijos} searchPlaceholder="Buscar gasto fijo..." />;
+export function GastosFijosTable({
+    gastosFijos,
+    cotizacion,
+}: {
+    gastosFijos: GastoFijo[];
+    cotizacion: CotizacionVigente | null;
+}) {
+    return <DataTable columns={columnas(cotizacion)} data={gastosFijos} searchPlaceholder="Buscar gasto fijo..." />;
 }

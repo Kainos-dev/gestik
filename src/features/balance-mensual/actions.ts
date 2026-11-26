@@ -8,9 +8,11 @@ import {
     TipoCambioMensualInput,
     MovimientoCuentaSchema,
     MovimientoCuentaInput,
+    PorcentajeSueldoSchema,
+    PorcentajeSueldoInput,
 } from './schema';
-import { calcularReparto } from './services';
-import { getFacturadoDelMes, getMesesPendientesDeReparto } from './queries';
+import { calcularReparto, validarCambioPorcentaje, porcentajeVigente } from './services';
+import { getFacturadoDelMes, getMesesPendientesDeReparto, getPorcentajesSueldo } from './queries';
 import { dateToSqlDateString } from '@/lib/utils';
 import { actualizarCotizacionesBlue } from '@/lib/cotizacion-dolar';
 
@@ -27,13 +29,15 @@ async function generarReparto(mes: Date, tipoCambioManual?: number) {
         throw new Error('Falta la cotización del dólar para repartir el Facturado en USD de este mes');
     }
     const usdEnArs = facturado.usdEnArs + facturado.usdSinCotizacion * (tipoCambioManual ?? 0);
-    const reparto = calcularReparto(facturado.ars + usdEnArs);
+    // El porcentaje de sueldos vigente para ESE mes (no el de hoy), y queda guardado en la fila.
+    const porcentajeSueldos = porcentajeVigente(await getPorcentajesSueldo(), mes);
+    const reparto = calcularReparto(facturado.ars + usdEnArs, porcentajeSueldos);
 
     await pool.query(
         `INSERT INTO repartos_mensuales
        (mes, facturado_ars, facturado_usd, facturado_usd_en_ars, tipo_cambio,
-        sueldos_ars, sueldos_usd, gastos_deudas_ars, gastos_deudas_usd, ahorro_mes_ars)
-     VALUES (date_trunc('month', $1::date), $2, $3, $4, $5, $6, 0, $7, 0, $8)
+        sueldos_ars, sueldos_usd, gastos_deudas_ars, gastos_deudas_usd, ahorro_mes_ars, porcentaje_sueldos)
+     VALUES (date_trunc('month', $1::date), $2, $3, $4, $5, $6, 0, $7, 0, $8, $9)
      ON CONFLICT (mes) DO NOTHING`,
         [
             dateToSqlDateString(mes),
@@ -45,6 +49,7 @@ async function generarReparto(mes: Date, tipoCambioManual?: number) {
             reparto.sueldosArs,
             reparto.gastosDeudasArs,
             reparto.ahorroMesArs,
+            porcentajeSueldos,
         ]
     );
 }
@@ -97,4 +102,38 @@ export async function registrarMovimientoCuenta(data: MovimientoCuentaInput) {
     );
 
     revalidatePath('/dashboard');
+}
+
+// ─── Porcentaje de sueldos ──────────────────────────────────────────────────
+
+export type ResultadoPorcentaje = { ok: true; vigenteDesde: string } | { ok: false; error: string };
+
+// Programa el porcentaje de sueldos desde el mes de la fecha elegida. No toca
+// ningún reparto ya generado (cada uno guarda su porcentaje) y no acepta un
+// mes que ya tenga el reparto cerrado (ver validarCambioPorcentaje). Si ya
+// había un cambio programado para ese mismo mes, lo reemplaza; la fila
+// anterior queda en el historial con su vigencia.
+export async function programarPorcentajeSueldos(data: PorcentajeSueldoInput): Promise<ResultadoPorcentaje> {
+    const parsed = PorcentajeSueldoSchema.safeParse(data);
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+
+    try {
+        const { rows } = await pool.query(`SELECT MAX(mes)::text AS ultimo FROM repartos_mensuales`);
+        const ultimoMesCerrado = rows[0]?.ultimo ? new Date(`${rows[0].ultimo}T00:00:00Z`) : null;
+        const validacion = validarCambioPorcentaje(parsed.data.porcentaje, parsed.data.vigenteDesde, ultimoMesCerrado);
+        if (!validacion.ok) return validacion;
+
+        const desde = dateToSqlDateString(validacion.vigenteDesde);
+        await pool.query(
+            `INSERT INTO porcentajes_sueldo (porcentaje, vigente_desde)
+       VALUES ($1, $2::date)
+       ON CONFLICT (vigente_desde) DO UPDATE SET porcentaje = EXCLUDED.porcentaje, updated_at = now()`,
+            [parsed.data.porcentaje, desde]
+        );
+        revalidatePath('/dashboard');
+        return { ok: true, vigenteDesde: desde };
+    } catch (error) {
+        console.error('Error al guardar el porcentaje de sueldos:', error);
+        return { ok: false, error: 'No se pudo guardar el porcentaje. Probá de nuevo.' };
+    }
 }

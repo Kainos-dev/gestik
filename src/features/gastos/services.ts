@@ -103,3 +103,58 @@ export function calcularTotalesGastosFijosActivos(gastosFijos: GastoFijo[]): {
         anual: calcularTotalPorMoneda(activos.filter((gastoFijo) => gastoFijo.frecuencia === 'ANUAL')),
     };
 }
+
+// ─── Gastos fijos del mes en pesos (Gastos → Gastos fijos y Balance Mensual) ─
+
+export interface GastoFijoEnPesos {
+    gastoFijo: GastoFijo;
+    // Equivalente en pesos: el monto si es ARS, monto × blue venta si es USD.
+    // null = gasto en USD y no hay cotización: no se inventa un valor.
+    montoArs: number | null;
+}
+
+export interface GastosFijosDelMes {
+    mensuales: GastoFijoEnPesos[]; // MENSUAL y MENSUAL_30_DIAS: se pagan una vez por mes
+    anuales: GastoFijoEnPesos[]; // aparte, para no inflar el total mensual
+    totalMensualArs: number; // suma de los mensuales con equivalente en pesos
+    usdSinConvertir: number; // USD mensuales que no se pudieron pasar a pesos (falta cotización)
+    porMoneda: TotalPorMoneda[]; // los mensuales en su moneda original
+}
+
+/** Equivalente en pesos de un monto: tal cual si es ARS; con el blue venta si es USD (null sin cotización). */
+export function equivalenteEnPesos(monto: number, moneda: Moneda, ventaBlue: number | null): number | null {
+    if (moneda === 'ARS') return monto;
+    if (ventaBlue === null || !Number.isFinite(ventaBlue) || ventaBlue <= 0) return null;
+    return Math.round(monto * ventaBlue * 100) / 100;
+}
+
+/**
+ * Gastos fijos que corresponden al mes de "mes" (en UTC): ACTIVOS y que ya
+ * empezaron antes de que termine ese mes. Los USD se pasan a pesos con
+ * "ventaBlue" (el blue venta vigente): es un ESTIMADO que se recalcula con
+ * cada cotización nueva, sin tocar el monto original en USD ni los gastos ya
+ * pagados (esos quedan en la tabla gastos con su propio valor).
+ */
+export function calcularGastosFijosDelMes(
+    gastosFijos: GastoFijo[],
+    mes: Date,
+    ventaBlue: number | null
+): GastosFijosDelMes {
+    const inicioMesSiguiente = Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth() + 1, 1);
+    const vigentes = gastosFijos.filter(
+        (g) => g.estado === 'ACTIVO' && new Date(g.fechaInicio).getTime() < inicioMesSiguiente
+    );
+    const enPesos = (g: GastoFijo): GastoFijoEnPesos => ({ gastoFijo: g, montoArs: equivalenteEnPesos(g.monto, g.moneda, ventaBlue) });
+
+    const mensuales = vigentes.filter((g) => g.frecuencia !== 'ANUAL').map(enPesos);
+    const anuales = vigentes.filter((g) => g.frecuencia === 'ANUAL').map(enPesos);
+    const centavos = (n: number) => Math.round(n * 100) / 100;
+
+    return {
+        mensuales,
+        anuales,
+        totalMensualArs: centavos(mensuales.reduce((s, g) => s + (g.montoArs ?? 0), 0)),
+        usdSinConvertir: centavos(mensuales.filter((g) => g.montoArs === null).reduce((s, g) => s + g.gastoFijo.monto, 0)),
+        porMoneda: calcularTotalPorMoneda(mensuales.map((g) => g.gastoFijo)),
+    };
+}

@@ -1,112 +1,16 @@
 // src/features/balance-mensual/components/balance-mensual-panel.tsx
 import { MovimientoSaldo, RepartoMensual } from '../types';
 import type { SaldoEnPesos } from '../queries';
-import { PORCENTAJE_AHORRO, PORCENTAJE_GASTOS_DEUDAS, PORCENTAJE_SUELDOS } from '../services';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import type { PorcentajeSueldo } from '../services';
 import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card';
+import { GastosFijosDelMes } from '@/features/gastos/services';
+import { DetalleGastosFijos } from '@/features/gastos/components/gastos-fijos-total';
+import type { CotizacionVigente } from '@/lib/cotizacion-dolar';
 import { formatCurrency } from '@/lib/moneda';
 import { cn, formatDate } from '@/lib/utils';
 import { TarjetaSaldo } from './tarjeta-saldo';
 import { AccionesCuenta } from './movimiento-cuenta-dialog';
-import { Badge } from '@/components/ui/badge';
-import type { ReactNode } from 'react';
-
-const MESES_LARGOS = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-
-function formatMesLargo(mes: Date): string {
-    const f = new Date(mes);
-    return `${MESES_LARGOS[f.getUTCMonth()]} ${f.getUTCFullYear()}`;
-}
-
-// Sólo el nombre del mes, sin año — es lo que piden los títulos de las
-// tarjetas del reparto ("30% de los ingresos de Septiembre").
-function formatNombreMes(mes: Date): string {
-    return MESES_LARGOS[new Date(mes).getUTCMonth()];
-}
-
-function porcentaje(p: number): string {
-    return `${Math.round(p * 100)}%`;
-}
-
-// Sueldo es un monto fijo; Gastos y Ahorro son estimados: hoy el 30% de
-// gastos se usa entero para gastos fijos y deudas, pero si mañana sobra, esa
-// diferencia cambia lo que realmente queda para gastos y para ahorro.
-function TituloReparto({ texto, tipo }: { texto: string; tipo: 'FIJO' | 'ESTIMADO' }) {
-    return (
-        <span className="flex flex-wrap items-center gap-2">
-            {texto}
-            <Badge variant={tipo === 'FIJO' ? 'default' : 'outline'}>{tipo === 'FIJO' ? 'Fijo' : 'Estimado'}</Badge>
-        </span>
-    );
-}
-
-// Una línea por moneda dentro de la misma tarjeta (mismo patrón que
-// DeudasTotales en deudas/components/deudas-totales.tsx) — para no repetir
-// "Sueldo (ARS)" / "Sueldo (USD)" como dos tarjetas separadas. Sueldo y
-// Gastos se quedan como "sólo el último mes" sin detalle: a diferencia del
-// ahorro, esa plata se gasta/retira ese mismo mes (no se acumula), así que
-// no hay mucho que auditar mes a mes ahí.
-function TarjetaPorMoneda({
-    label,
-    descripcion,
-    ars,
-    usd,
-}: {
-    label: ReactNode;
-    descripcion: string;
-    ars: number;
-    usd: number;
-}) {
-    return (
-        <Card size="sm" className="h-full gap-2">
-            <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-            </CardHeader>
-            <CardContent className="mt-auto space-y-0.5">
-                <p className="text-2xl font-semibold">{formatCurrency(ars, 'ARS')}</p>
-                {usd > 0 && <p className="text-2xl font-semibold">{formatCurrency(usd, 'USD')}</p>}
-                <p className="text-xs text-muted-foreground">{descripcion}</p>
-            </CardContent>
-        </Card>
-    );
-}
-
-// Historial mes a mes del ahorro (detalle de la tarjeta "Ahorro") — a
-// diferencia de Sueldo/Gastos, el ahorro sí tiene sentido auditarlo en el
-// tiempo: es la plata que se va juntando en las reservas de MP, no algo que
-// se gasta/retira el mismo mes.
-function DetalleAhorro({ repartos }: { repartos: RepartoMensual[] }) {
-    const ordenados = [...repartos].sort((a, b) => new Date(b.mes).getTime() - new Date(a.mes).getTime());
-
-    return (
-        <table className="w-full text-sm">
-            <thead>
-                <tr className="text-left text-muted-foreground border-b">
-                    <th className="pb-2 font-medium">Mes</th>
-                    <th className="pb-2 font-medium text-right">Facturado</th>
-                    <th className="pb-2 font-medium text-right">Ahorro ({porcentaje(PORCENTAJE_AHORRO)})</th>
-                </tr>
-            </thead>
-            <tbody>
-                {ordenados.map((r) => (
-                    <tr key={r.id} className="border-b last:border-0">
-                        <td className="py-2">{formatMesLargo(r.mes)}</td>
-                        <td className="py-2 text-right text-muted-foreground">
-                            {formatCurrency(r.facturadoArs + r.facturadoUsdEnArs, 'ARS')}
-                            {r.facturadoUsd > 0 && (
-                                <p className="text-xs">incluye {formatCurrency(r.facturadoUsd, 'USD')} pasados a pesos</p>
-                            )}
-                        </td>
-                        <td className="py-2 text-right font-medium">{formatCurrency(r.ahorroMesArs, 'ARS')}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    );
-}
+import { TarjetaSueldos } from './tarjeta-sueldos';
 
 // Historial (modal) de "Plata disponible en cuenta" / "Caja de ahorro":
 // fecha, nombre del movimiento, cuánto entró o salió y en cuánto dejó la
@@ -230,47 +134,37 @@ export function SaldosCuentaYAhorro({
     );
 }
 
-// Sueldo / Gastos / Ahorro del último reparto generado (normalmente el del
-// mes pasado — se genera el 1º del mes siguiente, ver
-// renovar-repartos-mensuales).
-export function BalanceMensualPanel({ repartos }: { repartos: RepartoMensual[] }) {
-    if (repartos.length === 0) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base">Sueldo, gastos y ahorro</CardTitle>
-                    <CardDescription>
-                        Todavía no se generó ningún reparto mensual — el primero se genera el 1º del mes que viene,
-                        a partir de lo Facturado este mes.
-                    </CardDescription>
-                </CardHeader>
-            </Card>
-        );
-    }
-
-    const ultimoReparto = repartos[repartos.length - 1];
-    const mes = formatNombreMes(ultimoReparto.mes);
+// Renglón del medio de Balance Mensual: dos tarjetas de la mitad del ancho
+// cada una (apiladas en el celular).
+// - Sueldos: el del último reparto cerrado (normalmente el mes pasado, se
+//   genera el 1º del mes siguiente), con el porcentaje con que se calculó;
+//   al tocarla se configura el porcentaje con vigencia (ver TarjetaSueldos).
+// - Gastos Fijos: lo que suman por mes los gastos fijos activos de este mes,
+//   todo en pesos (USD con el blue venta vigente, estimado) — mismo cálculo
+//   que Gastos → Gastos fijos (calcularGastosFijosDelMes).
+export function BalanceMensualPanel({
+    repartos,
+    porcentajesSueldo,
+    gastosFijosDelMes,
+    cotizacion,
+}: {
+    repartos: RepartoMensual[];
+    porcentajesSueldo: PorcentajeSueldo[];
+    gastosFijosDelMes: GastosFijosDelMes;
+    cotizacion: CotizacionVigente | null;
+}) {
+    const ultimoReparto = repartos.length ? repartos[repartos.length - 1] : null;
+    const faltaCotizacion = gastosFijosDelMes.usdSinConvertir > 0;
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <TarjetaPorMoneda
-                label={<TituloReparto texto={`Sueldo (${porcentaje(PORCENTAJE_SUELDOS)} de los ingresos de ${mes})`} tipo="FIJO" />}
-                descripcion={`Monto fijo, calculado sobre lo Facturado en ${formatMesLargo(ultimoReparto.mes)}.`}
-                ars={ultimoReparto.sueldosArs}
-                usd={ultimoReparto.sueldosUsd}
-            />
-            <TarjetaPorMoneda
-                label={<TituloReparto texto={`Gastos (${porcentaje(PORCENTAJE_GASTOS_DEUDAS)} de los ingresos de ${mes})`} tipo="ESTIMADO" />}
-                descripcion="Estimado: para gastos fijos y reposiciones de deuda. Si sobra, puede cambiar."
-                ars={ultimoReparto.gastosDeudasArs}
-                usd={ultimoReparto.gastosDeudasUsd}
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TarjetaSueldos reparto={ultimoReparto} porcentajes={porcentajesSueldo} />
             <KpiDetalleCard
-                label={<TituloReparto texto={`Ahorro (${porcentaje(PORCENTAJE_AHORRO)} de los ingresos de ${mes})`} tipo="ESTIMADO" />}
-                value={formatCurrency(ultimoReparto.ahorroMesArs, 'ARS')}
-                descripcion={`Estimado: ${porcentaje(PORCENTAJE_AHORRO)} de lo Facturado en ${formatMesLargo(ultimoReparto.mes)} (ya convertido a pesos). Puede cambiar según lo que sobre de gastos. Historial mes a mes:`}
+                label="Gastos Fijos (por mes)"
+                value={formatCurrency(gastosFijosDelMes.totalMensualArs, 'ARS') + (faltaCotizacion ? ' + USD sin cotización' : '')}
+                descripcion="Gastos fijos activos de este mes, en pesos. Los que están en dólares se estiman con el dólar blue venta vigente y se actualizan solos con cada cotización; el monto original en USD no cambia. Los anuales se muestran pero no suman al total mensual."
             >
-                <DetalleAhorro repartos={repartos} />
+                <DetalleGastosFijos delMes={gastosFijosDelMes} cotizacion={cotizacion} />
             </KpiDetalleCard>
         </div>
     );

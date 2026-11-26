@@ -27,3 +27,12 @@ export const MovimientoCuentaSchema = z.object({
 });
 
 export type MovimientoCuentaInput = z.input<typeof MovimientoCuentaSchema>;
+
+// Cambio del porcentaje de sueldos: rige desde el mes de "vigenteDesde"
+// (ver validarCambioPorcentaje en services.ts).
+export const PorcentajeSueldoSchema = z.object({
+    porcentaje: zImporte({ mensaje: 'Ingresá un porcentaje mayor a 0' }),
+    vigenteDesde: z.coerce.date({ error: 'Elegí desde cuándo se aplica' }),
+});
+
+export type PorcentajeSueldoInput = z.input<typeof PorcentajeSueldoSchema>;

@@ -76,9 +76,9 @@ export function DetalleFacturado({ cargos }: { cargos: CargoFacturadoMes[] }) {
                                         {c.tipoCambio !== null && <> a {formatCurrency(c.tipoCambio, 'ARS')}</>})
                                     </span>
                                     <p className="text-xs font-normal text-muted-foreground">
-                                        {c.fechaPago
-                                            ? `Dólar blue del ${formatDate(c.fechaPago)}, día del pago`
-                                            : 'Dólar blue de hoy — estimado hasta que paguen'}
+                                        {c.cotizacionEstimada
+                                            ? 'Dólar blue de hoy — estimado hasta que llegue el vencimiento'
+                                            : `Dólar blue del ${formatDate(c.vencimiento)}, día del vencimiento`}
                                     </p>
                                 </>
                             )}

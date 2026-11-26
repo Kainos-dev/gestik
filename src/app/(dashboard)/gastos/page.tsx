@@ -9,6 +9,8 @@ import {
 } from '@/features/deudas/queries';
 import { GastosFijosTable } from '@/features/gastos/components/gastos-fijos-table';
 import { GastosFijosTotal } from '@/features/gastos/components/gastos-fijos-total';
+import { calcularGastosFijosDelMes } from '@/features/gastos/services';
+import { getCotizacionBlueVentaHoy } from '@/lib/cotizacion-dolar';
 import { GastosTable } from '@/features/gastos/components/gastos-table';
 import { DeudasPanel } from '@/features/deudas/components/deudas-panel';
 import { DeudasTotales } from '@/features/deudas/components/deudas-totales';
@@ -20,7 +22,7 @@ import { IntegrantesManagerDialog } from '@/features/deudas/components/integrant
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default async function GastosPage() {
-    const [gastosFijos, gastos, deudas, integrantes, integrantesActivos, reposicionesPorDeuda, totalesDeudas] =
+    const [gastosFijos, gastos, deudas, integrantes, integrantesActivos, reposicionesPorDeuda, totalesDeudas, cotizacion] =
         await Promise.all([
             getGastosFijos(),
             getGastos(),
@@ -29,7 +31,10 @@ export default async function GastosPage() {
             getIntegrantesActivos(),
             getReposicionesAgrupadas(),
             getTotalesDeudas(),
+            getCotizacionBlueVentaHoy(),
         ]);
+    // Mismo cálculo que la tarjeta "Gastos Fijos" de Balance Mensual.
+    const gastosFijosDelMes = calcularGastosFijosDelMes(gastosFijos, new Date(), cotizacion?.venta ?? null);
 
     return (
         <div className="space-y-4">
@@ -51,13 +56,13 @@ export default async function GastosPage() {
 
                 <TabsContent value="fijos" className="space-y-4 pt-4">
                     <div className="flex justify-start">
-                        <GastosFijosTotal gastosFijos={gastosFijos} />
+                        <GastosFijosTotal delMes={gastosFijosDelMes} cotizacion={cotizacion} />
                     </div>
                     <div className="flex justify-end gap-2">
                         <TotalAPagarDialog gastosFijos={gastosFijos} />
                         <NuevoGastoFijoDialog />
                     </div>
-                    <GastosFijosTable gastosFijos={gastosFijos} />
+                    <GastosFijosTable gastosFijos={gastosFijos} cotizacion={cotizacion} />
                 </TabsContent>
 
                 <TabsContent value="deudas" className="space-y-4 pt-4">

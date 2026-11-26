@@ -2,6 +2,7 @@
 import { pool } from '@/lib/db';
 import { getCargosFacturadoMes } from '@/features/dashboard/queries';
 import { sqlCotizacionBlueVenta } from '@/lib/cotizacion-dolar';
+import { PorcentajeSueldo } from './services';
 import {
     RepartoMensual,
     mapRepartoMensual,
@@ -52,11 +53,17 @@ const MAX_MESES_CATCH_UP = 24;
 
 export async function getMesesPendientesDeReparto(): Promise<MesPendienteDeReparto[]> {
     const { rows } = await pool.query(
-        `SELECT DISTINCT date_trunc('month', vencimiento) AS mes
-     FROM cargos
-     WHERE date_trunc('month', vencimiento) < date_trunc('month', CURRENT_DATE)
-       AND date_trunc('month', vencimiento) NOT IN (SELECT mes FROM repartos_mensuales)
-     ORDER BY mes ASC
+        // El mes de cada vencimiento se toma en UTC (AT TIME ZONE 'UTC'), no en la
+        // zona horaria de la sesión: un vencimiento del día 1 a las 00:00 UTC es de
+        // ese mes aunque la base esté configurada en hora argentina (UTC-3).
+        `WITH meses AS (
+       SELECT DISTINCT date_trunc('month', vencimiento AT TIME ZONE 'UTC')::date AS mes FROM cargos
+     )
+     SELECT mes::timestamp AT TIME ZONE 'UTC' AS mes
+     FROM meses
+     WHERE mes < date_trunc('month', now() AT TIME ZONE 'UTC')::date
+       AND mes NOT IN (SELECT mes FROM repartos_mensuales)
+     ORDER BY 1 ASC
      LIMIT $1`,
         [MAX_MESES_CATCH_UP]
     );
@@ -67,6 +74,16 @@ export async function getMesesPendientesDeReparto(): Promise<MesPendienteDeRepar
         pendientes.push({ mes: row.mes, facturadoArs: ars, facturadoUsd: usd, usdSinCotizacion });
     }
     return pendientes;
+}
+
+// Historial de porcentajes de sueldo (el más viejo primero). vigente_desde es
+// un date: se arma el Date a medianoche UTC desde el texto, sin pasar por la
+// zona horaria local del proceso.
+export async function getPorcentajesSueldo(): Promise<PorcentajeSueldo[]> {
+    const { rows } = await pool.query(
+        `SELECT porcentaje, vigente_desde::text AS desde FROM porcentajes_sueldo ORDER BY vigente_desde ASC`
+    );
+    return rows.map((r) => ({ porcentaje: Number(r.porcentaje), vigenteDesde: new Date(`${r.desde}T00:00:00Z`) }));
 }
 
 export async function getRepartosMensuales(): Promise<RepartoMensual[]> {

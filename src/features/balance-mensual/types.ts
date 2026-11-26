@@ -20,6 +20,7 @@ export interface RepartoMensual {
     gastosDeudasArs: number;
     gastosDeudasUsd: number;
     ahorroMesArs: number;
+    porcentajeSueldos: number; // con el que se calculó este reparto (en puntos: 30 = 30%)
     createdAt: Date;
 }
 
@@ -36,6 +37,7 @@ export function mapRepartoMensual(row: any): RepartoMensual {
         gastosDeudasArs: Number(row.gastos_deudas_ars),
         gastosDeudasUsd: Number(row.gastos_deudas_usd),
         ahorroMesArs: Number(row.ahorro_mes_ars),
+        porcentajeSueldos: Number(row.porcentaje_sueldos),
         createdAt: row.created_at,
     };
 }

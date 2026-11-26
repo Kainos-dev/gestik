@@ -7,7 +7,7 @@ import { getTotalIngresosMes } from '@/features/finanzas/queries';
 import { MONEDAS, Moneda } from '@/lib/moneda';
 import { dateToSqlDateString } from '@/lib/utils';
 import { sqlCotizacionBlueVenta } from '@/lib/cotizacion-dolar';
-import { calcularProximoVencimiento, calcularVencimientoCargo } from '@/features/services/services';
+import { vencimientosProyectadosEnMes } from './proyeccion';
 
 // Cargos cuyo vencimiento cae en un mes: es lo que "ingresa" ese mes en
 // Balance Mensual y la base de su reparto. Cada cargo cuenta COMPLETO en el
@@ -29,13 +29,15 @@ export interface CargoFacturadoMes {
     monto: number;
     montoCubierto: number;
     contribucionMes: number; // lo que cuenta para el mes: el monto completo del cargo
-    // Pesos por dólar con que se pasa este cargo a pesos (1 si es en ARS):
-    // si ya se terminó de pagar, el blue venta del día de ese pago (o el
-    // tipo de cambio cargado en el pago, si el cliente pagó en pesos); si
-    // no, el blue venta de hoy — un estimado que se va actualizando hasta
-    // que paguen. null = no hay cotización guardada (la API nunca respondió).
+    // Pesos por dólar con que se pasa este cargo a pesos (1 si es en ARS): el
+    // blue venta del DÍA DE SU VENCIMIENTO, sin importar cuándo ni cuánto se
+    // pagó — la tarjeta es una proyección de lo programado, así que cobrar
+    // antes, tarde o en partes no la mueve. Si el vencimiento todavía no
+    // llegó, el blue de hoy como estimado (queda fijo al llegar la fecha).
+    // null = no hay cotización guardada (la API nunca respondió).
     tipoCambio: number | null;
-    fechaPago: Date | null; // día en que se terminó de cubrir el cargo; null si todavía no
+    cotizacionEstimada: boolean; // true = vence más adelante: tipoCambio es el blue de hoy
+    fechaPago: Date | null; // sólo informativo: día en que se terminó de cubrir el cargo
     contribucionMesArs: number | null; // contribucionMes en pesos; null si falta tipoCambio
     // true = el cargo todavía no existe, se proyecta a partir del servicio
     // (ver getCargosProyectadosMes) — no tiene id real ni estado de pago.
@@ -88,11 +90,12 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
        s.tipo AS servicio_tipo, s.nombre_personalizado AS servicio_nombre_personalizado,
        LEAST(a.monto, GREATEST(0, a.total_pagado_servicio - (a.acumulado_hasta_este - a.monto))) AS monto_cubierto,
        cob.fecha AS fecha_pago,
+       -- Blue venta del día del vencimiento (en UTC), o el de hoy si todavía no venció.
        CASE
          WHEN a.moneda = 'ARS' THEN 1
-         WHEN cob.moneda_pago = 'ARS' AND cob.tipo_cambio IS NOT NULL THEN cob.tipo_cambio
-         ELSE ${sqlCotizacionBlueVenta('COALESCE(cob.fecha, CURRENT_DATE)')}
-       END AS tipo_cambio
+         ELSE ${sqlCotizacionBlueVenta("LEAST(a.vencimiento AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC')")}
+       END AS tipo_cambio,
+       a.vencimiento > now() AS cotizacion_estimada
      FROM acumulado a
      JOIN clientes cl ON cl.id = a.cliente_id
      JOIN servicios s ON s.id = a.servicio_id
@@ -103,7 +106,10 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
        ORDER BY pa.acumulado
        LIMIT 1
      ) cob ON true
-     WHERE date_trunc('month', a.vencimiento) = date_trunc('month', $1::date)
+     -- Mes del vencimiento en UTC, no en la zona horaria de la sesión: un cargo
+     -- que vence el día 1 a las 00:00 UTC es de ese mes aunque la base esté en
+     -- hora argentina (ahí se leería como el día anterior a las 21:00).
+     WHERE date_trunc('month', a.vencimiento AT TIME ZONE 'UTC') = date_trunc('month', $1::date)
      ORDER BY cl.nombre`,
         [dateToSqlDateString(mes)]
     );
@@ -123,6 +129,7 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
             montoCubierto: Number(r.monto_cubierto),
             contribucionMes,
             tipoCambio,
+            cotizacionEstimada: r.cotizacion_estimada,
             fechaPago: r.fecha_pago,
             contribucionMesArs: tipoCambio !== null ? contribucionMes * tipoCambio : null,
             proyectado: false,
@@ -140,8 +147,6 @@ export async function getCargosFacturadoMes(mes: Date = new Date()): Promise<Car
 // vence ese mismo día; un POSPAGO cuyo período arranca el 15/11 vence el
 // 15/12, y ese cargo no existe hasta el 15/11. Se suma a getCargosFacturadoMes
 // en las tarjetas del mes actual y del mes que viene.
-const MAX_PERIODOS_PROYECTADOS = 24;
-
 export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturadoMes[]> {
     const { rows } = await pool.query(
         `SELECT s.id, s.tipo, s.nombre_personalizado, s.proximo_vencimiento, s.precio, s.moneda,
@@ -156,39 +161,38 @@ export async function getCargosProyectadosMes(mes: Date): Promise<CargoFacturado
      ORDER BY c.nombre`
     );
 
-    const inicioMes = Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth(), 1);
-    const inicioMesSiguiente = Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth() + 1, 1);
     const proyectados: CargoFacturadoMes[] = [];
 
     for (const r of rows) {
         const monto = Number(r.precio);
         const tipoCambio = r.tipo_cambio !== null ? Number(r.tipo_cambio) : null;
-        let periodo = new Date(r.proximo_vencimiento);
-
-        for (let i = 0; i < MAX_PERIODOS_PROYECTADOS && periodo.getTime() < inicioMesSiguiente; i++) {
-            const siguiente = calcularProximoVencimiento(periodo, r.frecuencia, r.vence_fin_de_mes);
-            if (!siguiente) break;
-            const vencimiento = calcularVencimientoCargo(periodo, siguiente, r.modalidad_pago);
-
-            if (vencimiento.getTime() >= inicioMes && vencimiento.getTime() < inicioMesSiguiente) {
-                proyectados.push({
-                    id: `proyectado-${r.id}-${i}`,
-                    clienteNombre: r.cliente_nombre,
-                    clienteColor: r.cliente_color,
-                    servicioTipo: r.tipo,
-                    servicioNombrePersonalizado: r.nombre_personalizado,
-                    vencimiento,
-                    moneda: r.moneda,
-                    monto,
-                    montoCubierto: 0,
-                    contribucionMes: monto,
-                    tipoCambio, // todavía no se pagó: estimado con el blue venta de hoy
-                    fechaPago: null,
-                    contribucionMesArs: tipoCambio !== null ? monto * tipoCambio : null,
-                    proyectado: true,
-                });
-            }
-            periodo = siguiente;
+        const vencimientos = vencimientosProyectadosEnMes(
+            {
+                proximoVencimiento: new Date(r.proximo_vencimiento),
+                frecuencia: r.frecuencia,
+                venceFinDeMes: r.vence_fin_de_mes,
+                modalidadPago: r.modalidad_pago,
+            },
+            mes
+        );
+        for (const { indice, vencimiento } of vencimientos) {
+            proyectados.push({
+                id: `proyectado-${r.id}-${indice}`,
+                clienteNombre: r.cliente_nombre,
+                clienteColor: r.cliente_color,
+                servicioTipo: r.tipo,
+                servicioNombrePersonalizado: r.nombre_personalizado,
+                vencimiento,
+                moneda: r.moneda,
+                monto,
+                montoCubierto: 0,
+                contribucionMes: monto,
+                tipoCambio, // todavía no venció: estimado con el blue venta de hoy
+                cotizacionEstimada: true,
+                fechaPago: null,
+                contribucionMesArs: tipoCambio !== null ? monto * tipoCambio : null,
+                proyectado: true,
+            });
         }
     }
 

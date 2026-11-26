@@ -142,3 +142,19 @@ export async function resolverCotizacionBlue(fecha: string): Promise<ResultadoCo
     }
     return { ok: true, ...cotizacion };
 }
+
+export interface CotizacionVigente {
+    venta: number;
+    fecha: string; // YYYY-MM-DD del día de la cotización usada
+}
+
+/**
+ * Blue venta guardado más reciente hasta hoy (UTC), como mucho de 5 días
+ * atrás. Sólo LEE la tabla (no llama a la API): sirve para mostrar
+ * equivalentes estimados en pesos (ej. un gasto fijo en USD) sin escribir
+ * nada. null si no hay ninguna cotización reciente: quien la usa tiene que
+ * mostrar ese estado, nunca convertir con 0.
+ */
+export async function getCotizacionBlueVentaHoy(): Promise<CotizacionVigente | null> {
+    return leerCotizacionGuardada(new Date().toISOString().slice(0, 10));
+}

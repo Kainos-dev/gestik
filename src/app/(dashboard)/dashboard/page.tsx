@@ -9,10 +9,13 @@ import {
     getMovimientosCuenta,
     getMesesPendientesDeReparto,
     getRepartosMensuales,
+    getPorcentajesSueldo,
 } from '@/features/balance-mensual/queries';
+import { getGastosFijos } from '@/features/gastos/queries';
+import { calcularGastosFijosDelMes } from '@/features/gastos/services';
 import { BalanceMensualPanel, SaldosCuentaYAhorro } from '@/features/balance-mensual/components/balance-mensual-panel';
 import { TipoCambioMensualGate } from '@/features/balance-mensual/components/tipo-cambio-mensual-gate';
-import { actualizarCotizacionesBlue } from '@/lib/cotizacion-dolar';
+import { actualizarCotizacionesBlue, getCotizacionBlueVentaHoy } from '@/lib/cotizacion-dolar';
 import { formatCurrency } from '@/lib/moneda';
 
 // "Octubre 2026", etc. — los títulos de las tarjetas nombran el mes en vez
@@ -43,7 +46,7 @@ function valorEnPesos(cargos: CargoFacturadoMes[]): string {
 }
 
 const ACLARACION_USD =
-    ' Lo cobrado en dólares se pasa a pesos con el dólar blue venta del día en que se pagó; si todavía no se pagó, con el de hoy (estimado).';
+    ' Lo que se factura en dólares se pasa a pesos con el dólar blue venta del día del vencimiento (si todavía no venció, con el de hoy, estimado). Cobrar antes, tarde o en partes no cambia estos montos: eso se ve en la cuenta.';
 
 export default async function DashboardPage() {
     const hoy = new Date();
@@ -68,6 +71,9 @@ export default async function DashboardPage() {
         cajaDeAhorro,
         movimientosCuenta,
         movimientosAhorro,
+        porcentajesSueldo,
+        gastosFijos,
+        cotizacionHoy,
     ] = await Promise.all([
         getCargosFacturadoMes(mesActual),
         getCargosFacturadoMes(mesAnterior),
@@ -80,6 +86,9 @@ export default async function DashboardPage() {
         getCajaDeAhorro(),
         getMovimientosCuenta(),
         getMovimientosAhorro(),
+        getPorcentajesSueldo(),
+        getGastosFijos(),
+        getCotizacionBlueVentaHoy(),
     ]);
 
     // "Ingresa" / "Va a ingresar" = cargos que ya existen y vencen ese mes,
@@ -135,7 +144,12 @@ export default async function DashboardPage() {
                 </KpiDetalleCard>
             </div>
 
-            <BalanceMensualPanel repartos={repartos} />
+            <BalanceMensualPanel
+                repartos={repartos}
+                porcentajesSueldo={porcentajesSueldo}
+                gastosFijosDelMes={calcularGastosFijosDelMes(gastosFijos, mesActual, cotizacionHoy?.venta ?? null)}
+                cotizacion={cotizacionHoy}
+            />
 
             <SaldosCuentaYAhorro
                 disponible={disponibleEnCuenta}
