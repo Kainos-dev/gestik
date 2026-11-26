@@ -102,16 +102,19 @@ export default async function DashboardPage() {
     const mesesQueNecesitanTipoCambio = mesesPendientesDeReparto.filter((m) => m.usdSinCotizacion > 0);
 
     return (
-        // Distribución compacta (gap-3, tarjetas size="sm") para que en una
-        // laptop de 768px de alto entre todo sin scroll. Si la ventana es más
-        // baja que el contenido nada se aplasta: el <main> del layout scrollea
-        // (igual que en mobile).
-        <div className="flex flex-col gap-3">
-            <h1 className="text-xl font-semibold">Balance Mensual</h1>
+        // En escritorio (lg+) la página ocupa exactamente el alto del <main>:
+        // las tres filas de tarjetas se reparten el alto disponible (1 : 1 : 2,2; la
+        // de saldos crece más porque usa el espacio para sus últimos movimientos)
+        // en vez de quedar agrupadas arriba. Cada fila nunca baja de lo que mide
+        // su contenido (flex-basis 0 + min-height auto), así que en una ventana
+        // muy baja nada se corta: el <main> del layout vuelve a scrollear, igual
+        // que en mobile, donde todo queda apilado con su alto natural.
+        <div className="flex flex-col gap-3 lg:h-full">
+            <h1 className="shrink-0 text-xl font-semibold">Balance Mensual</h1>
 
             <TipoCambioMensualGate mesesPendientes={mesesQueNecesitanTipoCambio} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:flex-[1_1_0%]">
                 <KpiDetalleCard
                     label={`Dinero que ingresó en ${nombreMes(mesAnterior)}`}
                     value={valorEnPesos(cargosMesAnterior)}

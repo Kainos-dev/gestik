@@ -84,14 +84,14 @@ export function TarjetaSueldos({
             <button type="button" onClick={() => abrir(true)} className="h-full text-left cursor-pointer">
                 <Card size="sm" className="h-full gap-2 transition-colors hover:bg-muted/50">
                     <CardHeader>
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                        <CardTitle className="text-sm font-medium text-muted-foreground lg:text-[clamp(0.875rem,1.6vh,1.0625rem)]">
                             {reparto
                                 ? `Sueldos (${pct(reparto.porcentajeSueldos)} de los ingresos de ${nombreMes(reparto.mes)})`
                                 : `Sueldos (${pct(vigenteHoy)})`}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="mt-auto space-y-0.5">
-                        <p className="text-2xl font-semibold">{reparto ? formatCurrency(reparto.sueldosArs, 'ARS') : '—'}</p>
+                        <p className="text-2xl font-semibold lg:text-[clamp(1.5rem,3.6vh,2.75rem)]">{reparto ? formatCurrency(reparto.sueldosArs, 'ARS') : '—'}</p>
                         <p className="text-xs text-muted-foreground">
                             {reparto
                                 ? `Calculado sobre lo Facturado en ${mesAnio(reparto.mes)}.`

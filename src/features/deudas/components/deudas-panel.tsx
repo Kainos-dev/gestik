@@ -1,13 +1,14 @@
 // src/features/deudas/components/deudas-panel.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Deuda, Integrante, ReposicionDeuda } from '../types';
 import { calcularEstadoDeuda, calcularPendientePorMoneda } from '../services';
 import { MONEDAS, formatCurrency } from '@/lib/moneda';
 import { DeudasTable } from './deudas-table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -41,7 +42,9 @@ export function DeudasPanel({
     integrantes,
     integrantesActivos,
     reposicionesPorDeuda,
+    acciones,
 }: {
+    acciones?: ReactNode; // "Gestionar integrantes" y "Nueva deuda", a la derecha de las vistas
     deudas: Deuda[];
     integrantes: Integrante[]; // todas, para el filtro (incluidas las desactivadas)
     integrantesActivos: Integrante[]; // para el formulario de edición
@@ -49,6 +52,7 @@ export function DeudasPanel({
 }) {
     const [vista, setVista] = useState<Vista>('ACTIVAS');
     const [persona, setPersona] = useState<string>(TODAS_LAS_PERSONAS);
+    const [busqueda, setBusqueda] = useState('');
 
     const porPersona = persona === TODAS_LAS_PERSONAS ? deudas : deudas.filter((d) => d.integranteId === persona);
     // Se recalcula con cada router.refresh() (ej. después de una reposición),
@@ -68,6 +72,7 @@ export function DeudasPanel({
 
     return (
         <div className="space-y-3">
+            {/* Renglón 1: vistas a la izquierda, acciones a la derecha. */}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div role="group" aria-label="Vista de deudas" className="inline-flex w-full rounded-md border p-0.5 sm:w-auto">
                     {VISTAS.map((v) => (
@@ -85,10 +90,21 @@ export function DeudasPanel({
                         </Button>
                     ))}
                 </div>
+                {acciones && <div className="flex flex-wrap gap-2 sm:justify-end">{acciones}</div>}
+            </div>
 
-                <div className="flex items-center gap-2">
+            {/* Renglón 2: buscador y filtro por persona. */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                    placeholder="Buscar deuda..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    aria-label="Buscar deuda"
+                    className="sm:flex-1"
+                />
+                <div className="flex items-center gap-2 sm:flex-1">
                     <Select value={persona} onValueChange={(value) => setPersona(value ?? TODAS_LAS_PERSONAS)}>
-                        <SelectTrigger aria-label="Filtrar por persona" className="w-full sm:w-56">
+                        <SelectTrigger aria-label="Filtrar por persona" className="w-full">
                             <SelectValue>{(value: string | null) => nombrePersona(value)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -136,7 +152,12 @@ export function DeudasPanel({
                 </p>
             )}
 
-            <DeudasTable deudas={visibles} integrantes={integrantesActivos} reposicionesPorDeuda={reposicionesPorDeuda} />
+            <DeudasTable
+                deudas={visibles}
+                integrantes={integrantesActivos}
+                reposicionesPorDeuda={reposicionesPorDeuda}
+                busqueda={busqueda}
+            />
         </div>
     );
 }

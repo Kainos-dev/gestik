@@ -3,6 +3,7 @@
 
 import { ColumnDef } from '@tanstack/react-table';
 import { Gasto } from '../types';
+import type { ReactNode } from 'react';
 import { DataTable } from '@/components/shared/data-table';
 import { EditarGastoDialog } from './edit-gasto-dialog';
 import { CATEGORIA_GASTO_LABELS, ORIGEN_FONDOS_LABELS } from '@/lib/constants';
@@ -39,6 +40,7 @@ const columns: ColumnDef<Gasto>[] = [
     },
 ];
 
-export function GastosTable({ gastos }: { gastos: Gasto[] }) {
-    return <DataTable columns={columns} data={gastos} searchPlaceholder="Buscar gasto..." />;
+// "acciones": botones en el mismo renglón que el buscador (ej. "+ Registrar gasto").
+export function GastosTable({ gastos, acciones }: { gastos: Gasto[]; acciones?: ReactNode }) {
+    return <DataTable columns={columns} data={gastos} searchPlaceholder="Buscar gasto..." acciones={acciones} />;
 }

@@ -1,7 +1,7 @@
 // src/features/gastos/components/gastos-fijos-total.tsx
 import { GastosFijosDelMes } from '../services';
 import type { CotizacionVigente } from '@/lib/cotizacion-dolar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/moneda';
 import { FRECUENCIA_GASTO_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
@@ -32,11 +32,12 @@ export function NotaCotizacionGastosFijos({
     );
 }
 
-// Cuadrado arriba de los botones de gastos fijos: cuánto suman por mes los
-// gastos fijos activos, todo en pesos (los USD con el blue venta vigente,
-// estimado), con el detalle por moneda original. Los anuales van aparte para
-// no inflar el total mensual. Mismo cálculo que la tarjeta "Gastos Fijos" de
-// Balance Mensual (calcularGastosFijosDelMes).
+// Franja compacta arriba de la lista de gastos fijos: cuánto suman por mes los
+// gastos fijos activos, todo en pesos (los USD estimados con la cotización
+// vigente), con el desglose por moneda original, los anuales aparte y la
+// aclaración de la cotización — en un solo renglón en escritorio para que la
+// lista gane alto. Mismo cálculo que la tarjeta "Gastos Fijos" de Balance
+// Mensual (calcularGastosFijosDelMes).
 export function GastosFijosTotal({
     delMes,
     cotizacion,
@@ -48,33 +49,32 @@ export function GastosFijosTotal({
     const anualesArs = delMes.anuales.reduce((s, g) => s + (g.montoArs ?? 0), 0);
 
     return (
-        <Card className="w-full sm:w-64 sm:aspect-square sm:justify-center">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total de gastos fijos por mes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-                {delMes.mensuales.length ? (
-                    <>
-                        <p className="text-3xl font-bold tracking-tight">
+        <Card size="sm" className="py-3">
+            <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
+                <div className="shrink-0">
+                    <p className="text-xs font-medium text-muted-foreground">Total de gastos fijos por mes</p>
+                    {delMes.mensuales.length ? (
+                        <p className="text-2xl font-semibold tracking-tight">
                             {formatCurrency(delMes.totalMensualArs, 'ARS')}
-                            <span className="ml-1.5 text-sm font-normal text-muted-foreground">ARS</span>
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">ARS</span>
                         </p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No hay gastos fijos mensuales activos.</p>
+                    )}
+                </div>
+
+                {(porMonedaConMonto.length > 1 || delMes.anuales.length > 0) && (
+                    <div className="space-y-0.5 text-sm text-muted-foreground sm:border-l sm:pl-6">
                         {porMonedaConMonto.length > 1 && (
-                            <p className="text-sm text-muted-foreground">
-                                {porMonedaConMonto.map((t) => formatCurrency(t.total, t.moneda)).join(' + ')}
-                            </p>
+                            <p>{porMonedaConMonto.map((t) => formatCurrency(t.total, t.moneda)).join(' + ')}</p>
                         )}
-                        <NotaCotizacionGastosFijos delMes={delMes} cotizacion={cotizacion} />
-                    </>
-                ) : (
-                    <p className="text-sm text-muted-foreground">No hay gastos fijos mensuales activos.</p>
+                        {delMes.anuales.length > 0 && <p>Más gastos anuales: {formatCurrency(anualesArs, 'ARS')} por año</p>}
+                    </div>
                 )}
 
-                {delMes.anuales.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                        Más gastos anuales: {formatCurrency(anualesArs, 'ARS')} por año
-                    </p>
-                )}
+                <div className="sm:ml-auto sm:max-w-sm sm:text-right">
+                    <NotaCotizacionGastosFijos delMes={delMes} cotizacion={cotizacion} />
+                </div>
             </CardContent>
         </Card>
     );

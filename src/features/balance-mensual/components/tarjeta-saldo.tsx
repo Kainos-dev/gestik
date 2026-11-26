@@ -39,7 +39,7 @@ export function TarjetaSaldo({ titulo, explicacion, align, children, detalle, ac
             >
                 <Card size="sm" className="h-full gap-2 transition-colors hover:bg-muted/50">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-1.5 text-base font-medium text-muted-foreground">
+                        <CardTitle className="flex items-center gap-1.5 text-base font-medium text-muted-foreground lg:text-[clamp(1rem,1.8vh,1.25rem)]">
                             {titulo}
                             <Tooltip>
                                 <TooltipTrigger
@@ -55,10 +55,13 @@ export function TarjetaSaldo({ titulo, explicacion, align, children, detalle, ac
                             </Tooltip>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-1">
+                    {/* flex-1 + min-h-0: lo que sobre de alto lo toma la lista de últimos
+                        movimientos (si hay), sin agrandar la tarjeta. */}
+                    <CardContent className="flex min-h-0 flex-1 flex-col gap-1">
                         {children}
                     </CardContent>
-                    <CardContent className="flex flex-wrap items-center justify-between gap-2">
+                    {/* mt-auto: con la tarjeta más alta (Balance Mensual a pantalla completa) los botones quedan abajo. */}
+                    <CardContent className="mt-auto flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs text-muted-foreground">Ver últimos movimientos</p>
                         {acciones && (
                             // Los clicks adentro (incluido el diálogo que abren, que en el

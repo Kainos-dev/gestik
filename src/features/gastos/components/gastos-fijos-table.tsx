@@ -1,7 +1,7 @@
 // src/features/gastos/components/gastos-fijos-table.tsx
 'use client';
 
-import { useTransition } from 'react';
+import { useTransition, type ReactNode } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
@@ -151,9 +151,18 @@ const columnas = (cotizacion: CotizacionVigente | null): ColumnDef<GastoFijo>[] 
 export function GastosFijosTable({
     gastosFijos,
     cotizacion,
+    acciones,
 }: {
     gastosFijos: GastoFijo[];
     cotizacion: CotizacionVigente | null;
+    acciones?: ReactNode; // en el mismo renglón que el buscador (ej. "+ Nuevo gasto fijo")
 }) {
-    return <DataTable columns={columnas(cotizacion)} data={gastosFijos} searchPlaceholder="Buscar gasto fijo..." />;
+    return (
+        <DataTable
+            columns={columnas(cotizacion)}
+            data={gastosFijos}
+            searchPlaceholder="Buscar gasto fijo..."
+            acciones={acciones}
+        />
+    );
 }

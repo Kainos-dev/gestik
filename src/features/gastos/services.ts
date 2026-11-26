@@ -49,31 +49,6 @@ export function calcularEstadoPagoGastoFijo(
     return vencimientoUTC < hoyLocal ? 'VENCIDO' : 'AL_DIA';
 }
 
-/**
- * Gastos fijos ACTIVOS que hay que pagar "a esta altura del mes": no sólo
- * los que vencen dentro del mes actual, sino también los atrasados de meses
- * anteriores — a diferencia de "servicios", acá no hay cron que adelante
- * proximoVencimiento solo, así que un gasto fijo no registrado a tiempo se
- * queda con la fecha vieja hasta que alguien lo registra manualmente. Mismo
- * criterio UTC que calcularEstadoPagoGastoFijo.
- */
-export function filtrarGastosFijosDelMes(gastosFijos: GastoFijo[], hoy: Date = new Date()): GastoFijo[] {
-    const inicioProximoMesUTC = Date.UTC(hoy.getFullYear(), hoy.getMonth() + 1, 1);
-
-    return gastosFijos.filter((gastoFijo) => {
-        if (gastoFijo.estado !== 'ACTIVO' || !gastoFijo.proximoVencimiento) return false;
-
-        const vencimiento = new Date(gastoFijo.proximoVencimiento);
-        const vencimientoUTC = Date.UTC(
-            vencimiento.getUTCFullYear(),
-            vencimiento.getUTCMonth(),
-            vencimiento.getUTCDate(),
-        );
-
-        return vencimientoUTC < inicioProximoMesUTC;
-    });
-}
-
 export interface TotalPorMoneda {
     moneda: Moneda;
     total: number;

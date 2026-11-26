@@ -15,7 +15,6 @@ import { GastosTable } from '@/features/gastos/components/gastos-table';
 import { DeudasPanel } from '@/features/deudas/components/deudas-panel';
 import { DeudasTotales } from '@/features/deudas/components/deudas-totales';
 import { NuevoGastoFijoDialog } from '@/features/gastos/components/new-gasto-fijo-dialog';
-import { TotalAPagarDialog } from '@/features/gastos/components/total-a-pagar-dialog';
 import { NuevoGastoDialog } from '@/features/gastos/components/new-gasto-dialog';
 import { NuevaDeudaDialog } from '@/features/deudas/components/new-deuda-dialog';
 import { IntegrantesManagerDialog } from '@/features/deudas/components/integrantes-manager-dialog';
@@ -48,30 +47,27 @@ export default async function GastosPage() {
                 </TabsList>
 
                 <TabsContent value="registro" className="space-y-4 pt-4">
-                    <div className="flex justify-end">
-                        <NuevoGastoDialog />
-                    </div>
-                    <GastosTable gastos={gastos} />
+                    <GastosTable gastos={gastos} acciones={<NuevoGastoDialog />} />
                 </TabsContent>
 
                 <TabsContent value="fijos" className="space-y-4 pt-4">
-                    <div className="flex justify-start">
-                        <GastosFijosTotal delMes={gastosFijosDelMes} cotizacion={cotizacion} />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <TotalAPagarDialog gastosFijos={gastosFijos} />
-                        <NuevoGastoFijoDialog />
-                    </div>
-                    <GastosFijosTable gastosFijos={gastosFijos} cotizacion={cotizacion} />
+                    <GastosFijosTotal delMes={gastosFijosDelMes} cotizacion={cotizacion} />
+                    <GastosFijosTable
+                        gastosFijos={gastosFijos}
+                        cotizacion={cotizacion}
+                        acciones={<NuevoGastoFijoDialog />}
+                    />
                 </TabsContent>
 
                 <TabsContent value="deudas" className="space-y-4 pt-4">
                     <DeudasTotales totales={totalesDeudas} />
-                    <div className="flex justify-end gap-2">
-                        <IntegrantesManagerDialog integrantes={integrantes} />
-                        <NuevaDeudaDialog integrantes={integrantesActivos} />
-                    </div>
                     <DeudasPanel
+                        acciones={
+                            <>
+                                <IntegrantesManagerDialog integrantes={integrantes} />
+                                <NuevaDeudaDialog integrantes={integrantesActivos} />
+                            </>
+                        }
                         deudas={deudas}
                         integrantes={integrantes}
                         integrantesActivos={integrantesActivos}

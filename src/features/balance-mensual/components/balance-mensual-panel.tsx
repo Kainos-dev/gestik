@@ -41,7 +41,7 @@ function MovimientosTabla({ movimientos }: { movimientos: MovimientoSaldo[] }) {
                         <td
                             className={cn(
                                 'py-2 text-right whitespace-nowrap',
-                                m.montoOriginal >= 0 ? 'text-green-500' : 'text-red-500'
+                                m.montoOriginal >= 0 ? 'text-green-500' : 'text-red-500',
                             )}
                         >
                             {m.monto === null ? (
@@ -80,10 +80,53 @@ const TIPO_MOVIMIENTO_LABELS: Record<MovimientoSaldo['tipo'], string> = {
     REPOSICION_DEUDA: 'Reposición de deuda',
 };
 
+// Últimos movimientos dentro de la tarjeta, sólo en escritorio: usa el alto
+// que sobra cuando Balance Mensual ocupa toda la pantalla (en una ventana baja
+// no queda lugar y no se ve; el historial completo sigue en el modal). Si una
+// fila no entra entera, se desvanece en vez de cortarse en seco.
+function UltimosMovimientosCompactos({ movimientos }: { movimientos: MovimientoSaldo[] }) {
+    if (movimientos.length === 0) return null;
+    return (
+        // relative + absolute: la lista no suma al alto mínimo de la tarjeta (sólo
+        // ocupa el espacio que sobra), así una ventana baja no vuelve a scrollear.
+        <div className="relative hidden min-h-0 flex-1 lg:block">
+            <div className="absolute inset-0 overflow-hidden pt-2 [mask-image:linear-gradient(to_bottom,black_calc(100%-1.5rem),transparent)]">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Últimos movimientos</p>
+                <ul className="divide-y divide-border/60 text-sm">
+                    {movimientos.slice(0, 8).map((m) => (
+                        <li key={m.id} className="flex items-center gap-3 py-1.5">
+                            <span className="w-12 shrink-0 text-xs text-muted-foreground">
+                                {new Date(m.fecha).toLocaleDateString('es-AR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    timeZone: 'UTC',
+                                })}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">{m.nombre}</span>
+                            <span
+                                className={cn(
+                                    'shrink-0 font-medium',
+                                    m.montoOriginal >= 0 ? 'text-green-500' : 'text-red-500',
+                                )}
+                            >
+                                {m.monto === null
+                                    ? 'Sin cotización'
+                                    : `${m.monto >= 0 ? '+' : ''}${formatCurrency(m.monto, 'ARS')}`}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </div>
+    );
+}
+
 function ValorSaldo({ saldo }: { saldo: SaldoEnPesos | null }) {
     return (
         <>
-            <p className="text-3xl font-semibold lg:text-4xl">{saldo !== null ? formatCurrency(saldo.total, 'ARS') : '—'}</p>
+            <p className="text-3xl font-semibold lg:text-[clamp(2.25rem,5vh,3.75rem)]">
+                {saldo !== null ? formatCurrency(saldo.total, 'ARS') : '—'}
+            </p>
             {saldo?.faltaCotizacion && (
                 <p className="text-xs text-amber-500">
                     Hay movimientos en dólares sin cotización guardada que no se están contando.
@@ -105,7 +148,7 @@ export function SaldosCuentaYAhorro({
     movimientosAhorro: MovimientoSaldo[];
 }) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:flex-[2.2_1_0%]">
             <TarjetaSaldo
                 titulo="Plata disponible en cuenta"
                 align="start"
@@ -117,6 +160,7 @@ export function SaldosCuentaYAhorro({
                 <p className="text-sm text-muted-foreground">
                     Sube con cada pago de un cliente y baja con cada gasto pagado con la cuenta y cada deuda repuesta.
                 </p>
+                <UltimosMovimientosCompactos movimientos={movimientosCuenta} />
             </TarjetaSaldo>
             <TarjetaSaldo
                 titulo="Caja de ahorro"
@@ -129,6 +173,7 @@ export function SaldosCuentaYAhorro({
                 <p className="text-sm text-muted-foreground">
                     Sube con cada ingreso a la caja y baja con cada retiro o gasto pagado con la caja.
                 </p>
+                <UltimosMovimientosCompactos movimientos={movimientosAhorro} />
             </TarjetaSaldo>
         </div>
     );
@@ -157,11 +202,14 @@ export function BalanceMensualPanel({
     const faltaCotizacion = gastosFijosDelMes.usdSinConvertir > 0;
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:flex-[1_1_0%]">
             <TarjetaSueldos reparto={ultimoReparto} porcentajes={porcentajesSueldo} />
             <KpiDetalleCard
                 label="Gastos Fijos (por mes)"
-                value={formatCurrency(gastosFijosDelMes.totalMensualArs, 'ARS') + (faltaCotizacion ? ' + USD sin cotización' : '')}
+                value={
+                    formatCurrency(gastosFijosDelMes.totalMensualArs, 'ARS') +
+                    (faltaCotizacion ? ' + USD sin cotización' : '')
+                }
                 descripcion="Gastos fijos activos de este mes, en pesos. Los que están en dólares se estiman con el dólar blue venta vigente y se actualizan solos con cada cotización; el monto original en USD no cambia. Los anuales se muestran pero no suman al total mensual."
             >
                 <DetalleGastosFijos delMes={gastosFijosDelMes} cotizacion={cotizacion} />

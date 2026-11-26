@@ -24,10 +24,11 @@ export function KpiDetalleCard({ label, value, descripcion, children }: KpiDetal
             <button type="button" onClick={() => setOpen(true)} className="h-full text-left cursor-pointer">
                 <Card size="sm" className="h-full gap-2 transition-colors hover:bg-muted/50">
                     <CardHeader>
-                        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground lg:text-[clamp(0.875rem,1.6vh,1.0625rem)]">{label}</CardTitle>
                     </CardHeader>
                     <CardContent className="mt-auto">
-                        <div className="text-2xl font-semibold">{value}</div>
+                        {/* En escritorio el tamaño acompaña el alto de la ventana (Balance Mensual ocupa toda la pantalla). */}
+                        <div className="text-2xl font-semibold lg:text-[clamp(1.5rem,3.6vh,2.75rem)]">{value}</div>
                         <p className="mt-0.5 text-xs text-muted-foreground">Ver detalle</p>
                     </CardContent>
                 </Card>

@@ -130,16 +130,19 @@ export function DeudasTable({
     deudas,
     integrantes,
     reposicionesPorDeuda,
+    busqueda,
 }: {
     deudas: Deuda[];
     integrantes: Integrante[];
     reposicionesPorDeuda: Record<string, ReposicionDeuda[]>;
+    busqueda?: string; // el buscador vive en DeudasPanel (mismo filtro que el buscador propio de la tabla)
 }) {
     return (
         <DataTable
             columns={columnas(integrantes, reposicionesPorDeuda)}
             data={deudas}
             searchPlaceholder="Buscar deuda..."
+            busqueda={busqueda}
         />
     );
 }
