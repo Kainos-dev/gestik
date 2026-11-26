@@ -181,11 +181,13 @@ export async function editarPago(id: string, data: PagoInput): Promise<Resultado
     if (!resultado.success) return { ok: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
     const parsed = resultado.data;
 
-    let anterior: (PagoAnterior & { cliente_id: string; updated_at: Date }) | undefined;
+    let anterior: (PagoAnterior & { cliente_id: string; version: string }) | undefined;
     let conversion: Conversion;
     try {
         const { rows } = await pool.query(
-            `SELECT cliente_id, servicio_id, fecha, moneda, moneda_pago, tipo_cambio, updated_at FROM pagos WHERE id = $1`,
+            // updated_at como TEXTO: un Date de JavaScript sólo tiene milisegundos y
+            // Postgres guarda microsegundos, así que comparar con el Date nunca coincidiría.
+            `SELECT cliente_id, servicio_id, fecha, moneda, moneda_pago, tipo_cambio, updated_at::text AS version FROM pagos WHERE id = $1`,
             [id]
         );
         anterior = rows[0];
@@ -206,9 +208,9 @@ export async function editarPago(id: string, data: PagoInput): Promise<Resultado
             `INSERT INTO historial_ediciones (tabla, registro_id, datos_anteriores, datos_nuevos)
        SELECT 'pagos', p.id, to_jsonb(p), '{}'::jsonb
        FROM pagos p
-       WHERE p.id = $1 AND p.updated_at = $2
+       WHERE p.id = $1 AND p.updated_at = $2::timestamptz
        RETURNING id`,
-            [id, anterior.updated_at]
+            [id, anterior.version]
         );
         if (!historial.rowCount) {
             await client.query('ROLLBACK');
