@@ -10,7 +10,7 @@ import {
 import { GastosFijosTable } from '@/features/gastos/components/gastos-fijos-table';
 import { GastosFijosTotal } from '@/features/gastos/components/gastos-fijos-total';
 import { calcularGastosFijosDelMes } from '@/features/gastos/services';
-import { getCotizacionBlueVentaHoy } from '@/lib/cotizacion-dolar';
+import { obtenerCotizacionCripto } from '@/lib/cotizacion-cripto';
 import { GastosTable } from '@/features/gastos/components/gastos-table';
 import { DeudasPanel } from '@/features/deudas/components/deudas-panel';
 import { DeudasTotales } from '@/features/deudas/components/deudas-totales';
@@ -30,7 +30,7 @@ export default async function GastosPage() {
             getIntegrantesActivos(),
             getReposicionesAgrupadas(),
             getTotalesDeudas(),
-            getCotizacionBlueVentaHoy(),
+            obtenerCotizacionCripto(), // estimación del costo de ARQ para los gastos fijos en USD
         ]);
     // Mismo cálculo que la tarjeta "Gastos Fijos" de Balance Mensual.
     const gastosFijosDelMes = calcularGastosFijosDelMes(gastosFijos, new Date(), cotizacion?.venta ?? null);

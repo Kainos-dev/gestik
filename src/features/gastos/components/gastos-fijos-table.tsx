@@ -8,8 +8,9 @@ import { Trash2 } from 'lucide-react';
 import { GastoFijo } from '../types';
 import { registrarGastoDelMes, eliminarGastoFijo } from '../actions';
 import { calcularEstadoPagoGastoFijo, equivalenteEnPesos } from '../services';
-import type { CotizacionVigente } from '@/lib/cotizacion-dolar';
+import type { CotizacionCripto } from '@/lib/cotizacion-cripto';
 import { formatCurrency } from '@/lib/moneda';
+import { textoCotizacionArq } from './gastos-fijos-total';
 import { DataTable } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EditarGastoFijoDialog } from './edit-gasto-fijo-dialog';
@@ -82,15 +83,19 @@ function AccionEliminar({ gastoFijo }: { gastoFijo: GastoFijo }) {
     );
 }
 
-// Monto original y, si es en USD, su equivalente estimado en pesos con el blue
-// venta vigente (se recalcula con cada cotización; el monto en USD no cambia).
-function CeldaMonto({ gastoFijo, cotizacion }: { gastoFijo: GastoFijo; cotizacion: CotizacionVigente | null }) {
+// Monto original y, si es en USD, su equivalente estimado en pesos con el dólar
+// cripto venta (costo aproximado de ARQ; se recalcula con cada cotización y el
+// monto en USD no cambia).
+function CeldaMonto({ gastoFijo, cotizacion }: { gastoFijo: GastoFijo; cotizacion: CotizacionCripto | null }) {
     if (gastoFijo.moneda !== 'USD') return <MontoConMoneda monto={gastoFijo.monto} moneda={gastoFijo.moneda} />;
     const ars = equivalenteEnPesos(gastoFijo.monto, 'USD', cotizacion?.venta ?? null);
     return (
         <div>
             <MontoConMoneda monto={gastoFijo.monto} moneda="USD" />
-            <p className="text-xs text-muted-foreground" title={cotizacion ? `Blue venta ${formatCurrency(cotizacion.venta, 'ARS')}` : undefined}>
+            <p
+                className={cotizacion?.desactualizada ? 'text-xs text-amber-500' : 'text-xs text-muted-foreground'}
+                title={cotizacion ? textoCotizacionArq(cotizacion) : undefined}
+            >
                 {ars !== null
                     ? `≈ ${formatCurrency(ars, 'ARS')}`
                     : 'Sin cotización'}
@@ -99,7 +104,7 @@ function CeldaMonto({ gastoFijo, cotizacion }: { gastoFijo: GastoFijo; cotizacio
     );
 }
 
-const columnas = (cotizacion: CotizacionVigente | null): ColumnDef<GastoFijo>[] => [
+const columnas = (cotizacion: CotizacionCripto | null): ColumnDef<GastoFijo>[] => [
     { accessorKey: 'nombre', header: 'Nombre' },
     {
         accessorKey: 'categoria',
@@ -154,7 +159,7 @@ export function GastosFijosTable({
     acciones,
 }: {
     gastosFijos: GastoFijo[];
-    cotizacion: CotizacionVigente | null;
+    cotizacion: CotizacionCripto | null;
     acciones?: ReactNode; // en el mismo renglón que el buscador (ej. "+ Nuevo gasto fijo")
 }) {
     return (

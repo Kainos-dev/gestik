@@ -15,7 +15,8 @@ import { getGastosFijos } from '@/features/gastos/queries';
 import { calcularGastosFijosDelMes } from '@/features/gastos/services';
 import { BalanceMensualPanel, SaldosCuentaYAhorro } from '@/features/balance-mensual/components/balance-mensual-panel';
 import { TipoCambioMensualGate } from '@/features/balance-mensual/components/tipo-cambio-mensual-gate';
-import { actualizarCotizacionesBlue, getCotizacionBlueVentaHoy } from '@/lib/cotizacion-dolar';
+import { actualizarCotizacionesBlue } from '@/lib/cotizacion-dolar';
+import { obtenerCotizacionCripto } from '@/lib/cotizacion-cripto';
 import { formatCurrency } from '@/lib/moneda';
 
 // "Octubre 2026", etc. — los títulos de las tarjetas nombran el mes en vez
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
         movimientosAhorro,
         porcentajesSueldo,
         gastosFijos,
-        cotizacionHoy,
+        cotizacionArq,
     ] = await Promise.all([
         getCargosFacturadoMes(mesActual),
         getCargosFacturadoMes(mesAnterior),
@@ -88,7 +89,7 @@ export default async function DashboardPage() {
         getMovimientosAhorro(),
         getPorcentajesSueldo(),
         getGastosFijos(),
-        getCotizacionBlueVentaHoy(),
+        obtenerCotizacionCripto(), // estimación del costo de ARQ para los gastos fijos en USD
     ]);
 
     // "Ingresa" / "Va a ingresar" = cargos que ya existen y vencen ese mes,
@@ -150,8 +151,8 @@ export default async function DashboardPage() {
             <BalanceMensualPanel
                 repartos={repartos}
                 porcentajesSueldo={porcentajesSueldo}
-                gastosFijosDelMes={calcularGastosFijosDelMes(gastosFijos, mesActual, cotizacionHoy?.venta ?? null)}
-                cotizacion={cotizacionHoy}
+                gastosFijosDelMes={calcularGastosFijosDelMes(gastosFijos, mesActual, cotizacionArq?.venta ?? null)}
+                cotizacion={cotizacionArq}
             />
 
             <SaldosCuentaYAhorro

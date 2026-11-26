@@ -83,7 +83,7 @@ export function calcularTotalesGastosFijosActivos(gastosFijos: GastoFijo[]): {
 
 export interface GastoFijoEnPesos {
     gastoFijo: GastoFijo;
-    // Equivalente en pesos: el monto si es ARS, monto × blue venta si es USD.
+    // Equivalente en pesos: el monto si es ARS, monto × dólar cripto venta si es USD.
     // null = gasto en USD y no hay cotización: no se inventa un valor.
     montoArs: number | null;
 }
@@ -96,30 +96,31 @@ export interface GastosFijosDelMes {
     porMoneda: TotalPorMoneda[]; // los mensuales en su moneda original
 }
 
-/** Equivalente en pesos de un monto: tal cual si es ARS; con el blue venta si es USD (null sin cotización). */
-export function equivalenteEnPesos(monto: number, moneda: Moneda, ventaBlue: number | null): number | null {
+/** Equivalente en pesos de un monto: tal cual si es ARS; con pesosPorDolar si es USD (null sin cotización). */
+export function equivalenteEnPesos(monto: number, moneda: Moneda, pesosPorDolar: number | null): number | null {
     if (moneda === 'ARS') return monto;
-    if (ventaBlue === null || !Number.isFinite(ventaBlue) || ventaBlue <= 0) return null;
-    return Math.round(monto * ventaBlue * 100) / 100;
+    if (pesosPorDolar === null || !Number.isFinite(pesosPorDolar) || pesosPorDolar <= 0) return null;
+    return Math.round(monto * pesosPorDolar * 100) / 100;
 }
 
 /**
  * Gastos fijos que corresponden al mes de "mes" (en UTC): ACTIVOS y que ya
  * empezaron antes de que termine ese mes. Los USD se pasan a pesos con
- * "ventaBlue" (el blue venta vigente): es un ESTIMADO que se recalcula con
+ * "pesosPorDolar" (el dólar cripto venta, costo aproximado de comprarlos en ARQ —
+ * ver src/lib/cotizacion-cripto.ts): es un ESTIMADO que se recalcula con
  * cada cotización nueva, sin tocar el monto original en USD ni los gastos ya
  * pagados (esos quedan en la tabla gastos con su propio valor).
  */
 export function calcularGastosFijosDelMes(
     gastosFijos: GastoFijo[],
     mes: Date,
-    ventaBlue: number | null
+    pesosPorDolar: number | null
 ): GastosFijosDelMes {
     const inicioMesSiguiente = Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth() + 1, 1);
     const vigentes = gastosFijos.filter(
         (g) => g.estado === 'ACTIVO' && new Date(g.fechaInicio).getTime() < inicioMesSiguiente
     );
-    const enPesos = (g: GastoFijo): GastoFijoEnPesos => ({ gastoFijo: g, montoArs: equivalenteEnPesos(g.monto, g.moneda, ventaBlue) });
+    const enPesos = (g: GastoFijo): GastoFijoEnPesos => ({ gastoFijo: g, montoArs: equivalenteEnPesos(g.monto, g.moneda, pesosPorDolar) });
 
     const mensuales = vigentes.filter((g) => g.frecuencia !== 'ANUAL').map(enPesos);
     const anuales = vigentes.filter((g) => g.frecuencia === 'ANUAL').map(enPesos);

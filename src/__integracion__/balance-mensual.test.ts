@@ -22,7 +22,7 @@ describe.skipIf(!URL_PRUEBAS)('Balance Mensual contra la base local', async () =
     const { porcentajeVigente } = await import('@/features/balance-mensual/services');
     const { getGastosFijos } = await import('@/features/gastos/queries');
     const { calcularGastosFijosDelMes } = await import('@/features/gastos/services');
-    const { getCotizacionBlueVentaHoy } = await import('@/lib/cotizacion-dolar');
+    const { obtenerCotizacionCripto } = await import('@/lib/cotizacion-cripto');
 
     const NOV = new Date(Date.UTC(2026, 10, 1));
     const DIC = new Date(Date.UTC(2026, 11, 1));
@@ -169,9 +169,72 @@ describe.skipIf(!URL_PRUEBAS)('Balance Mensual contra la base local', async () =
         });
     });
 
+    describe('3a. Cotización del dólar cripto (estimación de ARQ)', () => {
+        const respuesta = (venta: number, fecha: string) =>
+            new Response(JSON.stringify({ moneda: 'USD', casa: 'cripto', nombre: 'Cripto', compra: venta - 6, venta, fechaActualizacion: fecha }));
+        const falla = (async () => {
+            throw new Error('DolarAPI caída (simulada)');
+        }) as unknown as typeof fetch;
+
+        it('consulta la API real de DolarAPI, guarda la venta y la reutiliza durante 30 minutos', async () => {
+            await pool.query(`DELETE FROM cotizaciones_dolar_cripto`);
+            const real = await obtenerCotizacionCripto();
+            expect(real).not.toBeNull();
+            expect(real!.venta).toBeGreaterThan(0);
+            expect(real!.desactualizada).toBe(false);
+            const guardada = (await pool.query(`SELECT compra, venta FROM cotizaciones_dolar_cripto`)).rows;
+            expect(guardada).toHaveLength(1);
+            expect(Number(guardada[0].venta)).toBe(real!.venta);
+            expect(Number(guardada[0].venta)).toBeGreaterThanOrEqual(Number(guardada[0].compra)); // venta = comprar dólares entregando pesos
+
+            // Dentro de los 30 minutos no se vuelve a consultar (un fetch que falla no se llama).
+            const llamadas: string[] = [];
+            const espia = (async (url: string) => (llamadas.push(url), respuesta(9999, new Date().toISOString()))) as unknown as typeof fetch;
+            expect((await obtenerCotizacionCripto({ fetcher: espia }))!.venta).toBe(real!.venta);
+            expect(llamadas).toHaveLength(0);
+            anotaciones.push(`Cripto: DolarAPI venta ${real!.venta} (${real!.actualizadaAt}), guardada y reutilizada sin volver a consultar`);
+        });
+
+        it('si la API falla usa el último valor marcado como desactualizado; sin ninguno, no disponible', async () => {
+            const enUnaHora = new Date(Date.now() + 60 * 60 * 1000); // lo guardado ya venció
+            const vieja = await obtenerCotizacionCripto({ fetcher: falla, ahora: enUnaHora });
+            expect(vieja).not.toBeNull();
+            expect(vieja!.desactualizada).toBe(true);
+
+            const respaldo = (await pool.query(`SELECT * FROM cotizaciones_dolar_cripto`)).rows;
+            await pool.query(`DELETE FROM cotizaciones_dolar_cripto`);
+            expect(await obtenerCotizacionCripto({ fetcher: falla, ahora: new Date(enUnaHora.getTime() + 120_000) })).toBeNull();
+            for (const r of respaldo) {
+                await pool.query(
+                    `INSERT INTO cotizaciones_dolar_cripto (id, compra, venta, actualizada_at, obtenida_at) VALUES ($1, $2, $3, $4, $5)`,
+                    [r.id, r.compra, r.venta, r.actualizada_at, r.obtenida_at]
+                );
+            }
+            anotaciones.push('Cripto: con la API caída → último valor "desactualizado"; sin ninguno guardado → no disponible');
+        });
+
+        it('los cobros en pesos de servicios en USD siguen usando exactamente el blue venta', async () => {
+            const usd = (await pool.query(`SELECT id, cliente_id FROM servicios WHERE moneda = 'USD' AND estado = 'ACTIVO' LIMIT 1`)).rows[0];
+            const r = await crearPago({
+                clienteId: usd.cliente_id, servicioId: usd.id, fecha: new Date(), montoPagado: '100.000',
+                monedaPago: 'ARS', metodoPago: 'TRANSFERENCIA', notas: 'PRUEBA INTEGRACION',
+            });
+            expect(r.ok).toBe(true);
+            const blue = Number(
+                (await pool.query(`SELECT venta FROM cotizaciones_dolar_blue WHERE fecha <= now()::date ORDER BY fecha DESC LIMIT 1`)).rows[0].venta
+            );
+            const cripto = (await obtenerCotizacionCripto())!.venta;
+            expect(r.ok && r.tipoCambio).toBe(blue);
+            expect(blue).not.toBe(cripto);
+            const id = (await pool.query(`SELECT id FROM pagos ORDER BY created_at DESC LIMIT 1`)).rows[0].id;
+            await anularPago(id, 'Limpieza de la prueba');
+            anotaciones.push(`Cobros: siguen con blue venta ${blue} (el cripto está en ${cripto})`);
+        });
+    });
+
     describe('3. Gastos fijos en USD', () => {
-        it('se suman convertidos al blue venta, se actualizan al editarlos y no mueven la caja', async () => {
-            const cotizacion = await getCotizacionBlueVentaHoy();
+        it('se suman convertidos al dólar cripto venta, se actualizan al editarlos y no mueven la caja', async () => {
+            const cotizacion = await obtenerCotizacionCripto();
             expect(cotizacion).not.toBeNull();
             const venta = cotizacion!.venta;
             const total = async () => calcularGastosFijosDelMes(await getGastosFijos(), NOV, venta);

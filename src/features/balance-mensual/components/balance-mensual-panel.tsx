@@ -5,7 +5,7 @@ import type { PorcentajeSueldo } from '../services';
 import { KpiDetalleCard } from '@/features/dashboard/components/kpi-detalle-card';
 import { GastosFijosDelMes } from '@/features/gastos/services';
 import { DetalleGastosFijos } from '@/features/gastos/components/gastos-fijos-total';
-import type { CotizacionVigente } from '@/lib/cotizacion-dolar';
+import type { CotizacionCripto } from '@/lib/cotizacion-cripto';
 import { formatCurrency } from '@/lib/moneda';
 import { cn, formatDate } from '@/lib/utils';
 import { TarjetaSaldo } from './tarjeta-saldo';
@@ -196,7 +196,7 @@ export function BalanceMensualPanel({
     repartos: RepartoMensual[];
     porcentajesSueldo: PorcentajeSueldo[];
     gastosFijosDelMes: GastosFijosDelMes;
-    cotizacion: CotizacionVigente | null;
+    cotizacion: CotizacionCripto | null;
 }) {
     const ultimoReparto = repartos.length ? repartos[repartos.length - 1] : null;
     const faltaCotizacion = gastosFijosDelMes.usdSinConvertir > 0;
@@ -210,7 +210,7 @@ export function BalanceMensualPanel({
                     formatCurrency(gastosFijosDelMes.totalMensualArs, 'ARS') +
                     (faltaCotizacion ? ' + USD sin cotización' : '')
                 }
-                descripcion="Gastos fijos activos de este mes, en pesos. Los que están en dólares se estiman con el dólar blue venta vigente y se actualizan solos con cada cotización; el monto original en USD no cambia. Los anuales se muestran pero no suman al total mensual."
+                descripcion="Gastos fijos activos de este mes, en pesos. Los que están en dólares se estiman con el dólar cripto venta, como aproximación de lo que cuesta comprarlos en ARQ, y se actualizan solos con cada cotización; el monto original en USD no cambia. Los anuales se muestran pero no suman al total mensual."
             >
                 <DetalleGastosFijos delMes={gastosFijosDelMes} cotizacion={cotizacion} />
             </KpiDetalleCard>
