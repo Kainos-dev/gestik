@@ -91,7 +91,7 @@ function UltimosMovimientosCompactos({ movimientos }: { movimientos: MovimientoS
         // ocupa el espacio que sobra), así una ventana baja no vuelve a scrollear.
         <div className="relative hidden min-h-0 flex-1 lg:block">
             <div className="absolute inset-0 overflow-hidden pt-2 [mask-image:linear-gradient(to_bottom,black_calc(100%-1.5rem),transparent)]">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Últimos movimientos</p>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Últimos Movimientos</p>
                 <ul className="divide-y divide-border/60 text-sm">
                     {movimientos.slice(0, 8).map((m) => (
                         <li key={m.id} className="flex items-center gap-3 py-1.5">
@@ -150,7 +150,7 @@ export function SaldosCuentaYAhorro({
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:flex-[2.2_1_0%]">
             <TarjetaSaldo
-                titulo="Plata disponible en cuenta"
+                titulo="Plata Disponible en Cuenta"
                 align="start"
                 explicacion="Arranca en el saldo inicial y suma cada pago de un cliente y cada ingreso manual. Resta los gastos pagados con la cuenta (los gastos fijos, siempre), las reposiciones de deuda y los retiros manuales. Lo que entra o sale en dólares se pasa a pesos con el dólar blue venta del día."
                 detalle={<MovimientosTabla movimientos={movimientosCuenta} />}
@@ -163,7 +163,7 @@ export function SaldosCuentaYAhorro({
                 <UltimosMovimientosCompactos movimientos={movimientosCuenta} />
             </TarjetaSaldo>
             <TarjetaSaldo
-                titulo="Caja de ahorro"
+                titulo="Caja de Ahorro"
                 align="end"
                 explicacion="Se carga a mano: arranca en el saldo inicial, suma cada ingreso y resta cada retiro y los gastos pagados con la caja de ahorro."
                 detalle={<MovimientosTabla movimientos={movimientosAhorro} />}
@@ -185,7 +185,8 @@ export function SaldosCuentaYAhorro({
 //   genera el 1º del mes siguiente), con el porcentaje con que se calculó;
 //   al tocarla se configura el porcentaje con vigencia (ver TarjetaSueldos).
 // - Gastos Fijos: lo que suman por mes los gastos fijos activos de este mes,
-//   todo en pesos (USD con el blue venta vigente, estimado) — mismo cálculo
+//   todo en pesos (USD estimados con el dólar cripto venta, costo aproximado de
+//   ARQ — ver src/lib/cotizacion-cripto.ts) — mismo cálculo
 //   que Gastos → Gastos fijos (calcularGastosFijosDelMes).
 export function BalanceMensualPanel({
     repartos,
@@ -205,7 +206,7 @@ export function BalanceMensualPanel({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:flex-[1_1_0%]">
             <TarjetaSueldos reparto={ultimoReparto} porcentajes={porcentajesSueldo} />
             <KpiDetalleCard
-                label="Gastos Fijos (por mes)"
+                label="Gastos Fijos (por Mes)"
                 value={
                     formatCurrency(gastosFijosDelMes.totalMensualArs, 'ARS') +
                     (faltaCotizacion ? ' + USD sin cotización' : '')

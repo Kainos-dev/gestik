@@ -1,6 +1,6 @@
 // src/features/deudas/components/deudas-totales.tsx
 import { TotalesDeudas } from '../queries';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/moneda';
 
 // Una tarjeta por métrica (no por moneda): el título aclara el propósito de
@@ -16,16 +16,19 @@ function TarjetaTotal({
     frase: string;
     valores: { moneda: TotalesDeudas['moneda']; value: number }[];
 }) {
+    // Compacta, con la misma escala que la franja "Total de Gastos Fijos por
+    // Mes": título chico arriba e importe destacado; si el ancho no alcanza, la
+    // frase baja al renglón siguiente en vez de desbordar.
     return (
-        <Card>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
+        <Card size="sm" className="py-3">
+            <CardContent className="space-y-0.5">
+                <p className="text-xs font-medium text-muted-foreground">{label}</p>
                 {valores.map((v) => (
-                    <p key={v.moneda} className="text-2xl font-semibold">
-                        {formatCurrency(v.value, v.moneda)}
-                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                    <p key={v.moneda} className="flex flex-wrap items-baseline gap-x-1.5">
+                        <span className="whitespace-nowrap text-2xl font-semibold tracking-tight">
+                            {formatCurrency(v.value, v.moneda)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
                             {frase} {v.moneda}
                         </span>
                     </p>
@@ -46,19 +49,21 @@ export function DeudasTotales({ totales }: { totales: TotalesDeudas[] }) {
     }
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        // Tres columnas recién desde lg: con la barra lateral, en anchos menores
+        // un importe como "US$ 1.240,28" no entra y quedaría cortado.
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <TarjetaTotal
-                label="Total adeudado"
+                label="Total Adeudado"
                 frase="total en"
                 valores={conDeudas.map((t) => ({ moneda: t.moneda, value: t.totalDeudas }))}
             />
             <TarjetaTotal
-                label="Falta reponer"
+                label="Falta Reponer"
                 frase="falta reponer en"
                 valores={conDeudas.map((t) => ({ moneda: t.moneda, value: t.totalPendiente }))}
             />
             <TarjetaTotal
-                label="Repuesto hasta la fecha"
+                label="Repuesto Hasta la Fecha"
                 frase="se repuso en"
                 valores={conDeudas.map((t) => ({ moneda: t.moneda, value: t.totalRepuesto }))}
             />

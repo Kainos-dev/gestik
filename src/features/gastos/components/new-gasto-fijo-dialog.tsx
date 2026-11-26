@@ -20,7 +20,7 @@ export function NuevoGastoFijoDialog() {
             <DialogTrigger render={<Button>+ Nuevo gasto fijo</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Nuevo gasto fijo</DialogTitle>
+                    <DialogTitle>Nuevo Gasto Fijo</DialogTitle>
                 </DialogHeader>
                 <GastoFijoForm onSuccess={() => setOpen(false)} />
             </DialogContent>

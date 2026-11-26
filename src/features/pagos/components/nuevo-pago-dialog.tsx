@@ -23,7 +23,7 @@ export function NuevoPagoDialog({
             <DialogTrigger render={<Button>+ Registrar cobro</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Registrar cobro</DialogTitle>
+                    <DialogTitle>Registrar Cobro</DialogTitle>
                 </DialogHeader>
                 {/* Se monta al abrir, para que arranque limpio y con el cliente filtrado en ese momento. */}
                 {open && (

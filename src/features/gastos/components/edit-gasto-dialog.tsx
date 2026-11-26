@@ -28,7 +28,7 @@ export function EditarGastoDialog({ gasto }: { gasto: Gasto }) {
             />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editar gasto</DialogTitle>
+                    <DialogTitle>Editar Gasto</DialogTitle>
                 </DialogHeader>
                 <GastoForm gasto={gasto} onSuccess={() => setOpen(false)} />
             </DialogContent>

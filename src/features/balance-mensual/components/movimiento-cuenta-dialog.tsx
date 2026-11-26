@@ -34,13 +34,13 @@ const TEXTOS: Record<CuentaManual, Record<TipoMovimientoManual, Textos>> = {
     CUENTA: {
         INGRESO: {
             boton: 'Ingresar',
-            titulo: 'Ingresar plata a la cuenta',
+            titulo: 'Ingresar Plata a la Cuenta',
             descripcion: 'Para plata que entra a la cuenta y no es un pago de cliente ya registrado en Cobros.',
             exito: 'Ingreso registrado',
         },
         RETIRO: {
             boton: 'Retirar',
-            titulo: 'Retirar plata de la cuenta',
+            titulo: 'Retirar Plata de la Cuenta',
             descripcion: 'Para plata que sale de la cuenta y no es un gasto ni una reposición de deuda ya registrados.',
             exito: 'Retiro registrado',
         },
@@ -48,13 +48,13 @@ const TEXTOS: Record<CuentaManual, Record<TipoMovimientoManual, Textos>> = {
     CAJA_AHORRO: {
         INGRESO: {
             boton: 'Ingresar',
-            titulo: 'Ingresar plata a la caja de ahorro',
+            titulo: 'Ingresar Plata a la Caja de Ahorro',
             descripcion: 'Plata que se aparta para ahorro.',
             exito: 'Ingreso a la caja registrado',
         },
         RETIRO: {
             boton: 'Retirar',
-            titulo: 'Retirar plata de la caja de ahorro',
+            titulo: 'Retirar Plata de la Caja de Ahorro',
             descripcion: 'Para plata que sale de la caja y no es un gasto ya registrado con la caja de ahorro.',
             exito: 'Retiro de la caja registrado',
         },

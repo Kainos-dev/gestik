@@ -42,7 +42,7 @@ export function TipoCambioMensualGate({ mesesPendientes }: { mesesPendientes: Me
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Tipo de cambio mensual</DialogTitle>
+                        <DialogTitle>Tipo de Cambio Mensual</DialogTitle>
                         <DialogDescription>
                             Necesario para pasar a pesos lo facturado en dólares ese mes.
                         </DialogDescription>

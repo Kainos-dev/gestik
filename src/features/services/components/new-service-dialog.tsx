@@ -27,7 +27,7 @@ export function NuevoServicioDialog({
       <DialogTrigger render={<Button>+ Nuevo servicio</Button>} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nuevo servicio</DialogTitle>
+          <DialogTitle>Nuevo Servicio</DialogTitle>
         </DialogHeader>
         <ServicioForm
           clientes={clientes}

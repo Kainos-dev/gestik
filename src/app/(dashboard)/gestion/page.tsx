@@ -51,19 +51,19 @@ export default async function GestionPage() {
 
             {balancePorMoneda.map((b) => (
                 <div key={b.moneda} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <KpiCard label={`Ingresos del mes (${b.moneda})`} value={formatCurrency(b.ingresos, b.moneda)} />
-                    <KpiCard label={`Gastos fijos del mes (${b.moneda})`} value={formatCurrency(b.gastos, b.moneda)} />
+                    <KpiCard label={`Ingresos del Mes (${b.moneda})`} value={formatCurrency(b.ingresos, b.moneda)} />
+                    <KpiCard label={`Gastos Fijos del Mes (${b.moneda})`} value={formatCurrency(b.gastos, b.moneda)} />
                     <KpiCard
-                        label={`Reposiciones de deuda del mes (${b.moneda})`}
+                        label={`Reposiciones de Deuda del Mes (${b.moneda})`}
                         value={formatCurrency(b.reposicionesDeuda, b.moneda)}
                     />
-                    <KpiCard label={`Balance del mes (${b.moneda})`} value={formatCurrency(b.balance, b.moneda)} />
+                    <KpiCard label={`Balance del Mes (${b.moneda})`} value={formatCurrency(b.balance, b.moneda)} />
                 </div>
             ))}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <ChartDetalleCard
-                    titulo="Ingresos últimos 6 meses"
+                    titulo="Ingresos Últimos 6 Meses"
                     descripcion="Total ingresado por mes, agrupados por moneda."
                     detalle={<MesesDetalleTabla data={ingresosPorMes} />}
                 >
@@ -71,7 +71,7 @@ export default async function GestionPage() {
                 </ChartDetalleCard>
 
                 <ChartDetalleCard
-                    titulo="Gastos últimos 6 meses"
+                    titulo="Gastos Últimos 6 Meses"
                     descripcion="Gastos total registrado por mes, agrupados por moneda."
                     detalle={<MesesDetalleTabla data={gastosPorMes} />}
                 >
@@ -81,7 +81,7 @@ export default async function GestionPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-base">Historial completo</CardTitle>
+                    <CardTitle className="text-base">Historial Completo</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <HistorialTable pagos={historial} />

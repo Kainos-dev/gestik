@@ -23,7 +23,7 @@ export default async function PagosPage() {
             <Tabs defaultValue="cargos">
                 <TabsList>
                     <TabsTrigger value="cargos">Cargos</TabsTrigger>
-                    <TabsTrigger value="recibidos">Cobros recibidos</TabsTrigger>
+                    <TabsTrigger value="recibidos">Cobros Recibidos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="cargos" className="space-y-4 pt-4">

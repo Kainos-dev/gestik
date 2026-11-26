@@ -117,7 +117,7 @@ export default async function DashboardPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:flex-[1_1_0%]">
                 <KpiDetalleCard
-                    label={`Dinero que ingresó en ${nombreMes(mesAnterior)}`}
+                    label={`Dinero que Ingresó en ${nombreMes(mesAnterior)}`}
                     value={valorEnPesos(cargosMesAnterior)}
                     descripcion={
                         'Cargos que vencían el mes pasado, cada uno completo aunque se haya pagado antes. Es la base del reparto de sueldo, gastos y ahorro.' +
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
                     <DetalleFacturado cargos={cargosMesAnterior} />
                 </KpiDetalleCard>
                 <KpiDetalleCard
-                    label={`Dinero que ingresa en ${nombreMes(mesActual)}`}
+                    label={`Dinero que Ingresa en ${nombreMes(mesActual)}`}
                     value={valorEnPesos(cargosIngresan)}
                     descripcion={
                         'Cargos que vencen este mes, cada uno completo aunque se haya pagado antes. Incluye los que todavía no se generaron porque su período no arrancó.' +
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
                     <DetalleFacturado cargos={cargosIngresan} />
                 </KpiDetalleCard>
                 <KpiDetalleCard
-                    label={`Dinero que va a ingresar en ${nombreMes(mesSiguiente)}`}
+                    label={`Dinero que Va a Ingresar en ${nombreMes(mesSiguiente)}`}
                     value={valorEnPesos(cargosVanAIngresar)}
                     descripcion={
                         'Cargos que vencen el mes que viene, cada uno completo aunque se haya pagado antes. Incluye los que todavía no se generaron porque su período no arrancó.' +

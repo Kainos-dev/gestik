@@ -44,7 +44,7 @@ export function DeudasPanel({
     reposicionesPorDeuda,
     acciones,
 }: {
-    acciones?: ReactNode; // "Gestionar integrantes" y "Nueva deuda", a la derecha de las vistas
+    acciones?: ReactNode; // "Gestionar Integrantes" y "Nueva deuda", a la derecha de las vistas
     deudas: Deuda[];
     integrantes: Integrante[]; // todas, para el filtro (incluidas las desactivadas)
     integrantesActivos: Integrante[]; // para el formulario de edición

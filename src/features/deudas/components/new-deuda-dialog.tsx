@@ -21,7 +21,7 @@ export function NuevaDeudaDialog({ integrantes }: { integrantes: Integrante[] })
             <DialogTrigger render={<Button>+ Nueva deuda</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Registrar deuda</DialogTitle>
+                    <DialogTitle>Registrar Deuda</DialogTitle>
                 </DialogHeader>
                 <DeudaForm integrantes={integrantes} onSuccess={() => setOpen(false)} />
             </DialogContent>

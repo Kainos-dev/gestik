@@ -23,7 +23,7 @@ export function EditarPagoDialog({ pago, clientes }: { pago: Pago; clientes: Cli
             />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editar cobro</DialogTitle>
+                    <DialogTitle>Editar Cobro</DialogTitle>
                 </DialogHeader>
                 {/* Se monta al abrir: el formulario arranca siempre con los datos actuales del cobro. */}
                 {open && <PagoForm clientes={clientes} pago={pago} onSuccess={() => setOpen(false)} />}

@@ -79,7 +79,7 @@ export function VencimientosList({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-3">
                 <div>
-                    <h3 className="text-xs font-medium uppercase text-muted-foreground">Renovación de servicios</h3>
+                    <h3 className="text-xs font-medium uppercase text-muted-foreground">Renovación de Servicios</h3>
                     <p className="text-xs text-muted-foreground">
                         Fin del período actual del servicio — ese día termina el mes/ciclo en curso y arranca el
                         siguiente.
@@ -89,7 +89,7 @@ export function VencimientosList({
             </div>
             <div className="space-y-3">
                 <div>
-                    <h3 className="text-xs font-medium uppercase text-muted-foreground">Gastos fijos</h3>
+                    <h3 className="text-xs font-medium uppercase text-muted-foreground">Gastos Fijos</h3>
                     <p className="text-xs text-muted-foreground">Próxima fecha en que vuelve a cobrarse el gasto.</p>
                 </div>
                 <GastosVencimientos vencimientos={vencimientosGastos} />

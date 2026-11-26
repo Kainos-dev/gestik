@@ -14,7 +14,7 @@ export function NuevoClienteDialog() {
             <DialogTrigger render={<Button>+ Nuevo cliente</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Nuevo cliente</DialogTitle>
+                    <DialogTitle>Nuevo Cliente</DialogTitle>
                 </DialogHeader>
                 <ClienteForm onSuccess={() => setOpen(false)} />
             </DialogContent>

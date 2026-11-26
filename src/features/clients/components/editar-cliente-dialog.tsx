@@ -22,7 +22,7 @@ export function EditarClienteDialog({ cliente }: { cliente: Cliente }) {
             />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editar cliente</DialogTitle>
+                    <DialogTitle>Editar Cliente</DialogTitle>
                 </DialogHeader>
                 <ClienteForm cliente={cliente} onSuccess={() => setOpen(false)} />
             </DialogContent>

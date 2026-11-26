@@ -28,7 +28,7 @@ export function EditarGastoFijoDialog({ gastoFijo }: { gastoFijo: GastoFijo }) {
             />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editar gasto fijo</DialogTitle>
+                    <DialogTitle>Editar Gasto Fijo</DialogTitle>
                 </DialogHeader>
                 <GastoFijoForm gastoFijo={gastoFijo} onSuccess={() => setOpen(false)} />
             </DialogContent>

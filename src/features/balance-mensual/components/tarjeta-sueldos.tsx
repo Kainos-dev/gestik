@@ -86,7 +86,7 @@ export function TarjetaSueldos({
                     <CardHeader>
                         <CardTitle className="text-sm font-medium text-muted-foreground lg:text-[clamp(0.875rem,1.6vh,1.0625rem)]">
                             {reparto
-                                ? `Sueldos (${pct(reparto.porcentajeSueldos)} de los ingresos de ${nombreMes(reparto.mes)})`
+                                ? `Sueldos (${pct(reparto.porcentajeSueldos)} de los Ingresos de ${nombreMes(reparto.mes)})`
                                 : `Sueldos (${pct(vigenteHoy)})`}
                         </CardTitle>
                     </CardHeader>
@@ -107,7 +107,7 @@ export function TarjetaSueldos({
             <Dialog open={open} onOpenChange={abrir}>
                 <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Porcentaje de sueldos</DialogTitle>
+                        <DialogTitle>Porcentaje de Sueldos</DialogTitle>
                         <DialogDescription>
                             Qué parte de lo Facturado de cada mes va a sueldos. Un cambio rige desde el mes que elijas y no
                             modifica los meses que ya tienen el reparto cerrado.

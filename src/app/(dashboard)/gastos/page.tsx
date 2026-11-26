@@ -39,16 +39,13 @@ export default async function GastosPage() {
         <div className="space-y-4">
             <h1 className="text-2xl font-semibold">Gastos</h1>
 
-            <Tabs defaultValue="registro">
+            {/* Orden fijo: Gastos Fijos (abre por defecto) | Deudas | Historial de Gastos. */}
+            <Tabs defaultValue="fijos">
                 <TabsList>
-                    <TabsTrigger value="registro">Registro de gastos</TabsTrigger>
-                    <TabsTrigger value="fijos">Gastos fijos</TabsTrigger>
+                    <TabsTrigger value="fijos">Gastos Fijos</TabsTrigger>
                     <TabsTrigger value="deudas">Deudas</TabsTrigger>
+                    <TabsTrigger value="registro">Historial de Gastos</TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="registro" className="space-y-4 pt-4">
-                    <GastosTable gastos={gastos} acciones={<NuevoGastoDialog />} />
-                </TabsContent>
 
                 <TabsContent value="fijos" className="space-y-4 pt-4">
                     <GastosFijosTotal delMes={gastosFijosDelMes} cotizacion={cotizacion} />
@@ -73,6 +70,10 @@ export default async function GastosPage() {
                         integrantesActivos={integrantesActivos}
                         reposicionesPorDeuda={reposicionesPorDeuda}
                     />
+                </TabsContent>
+
+                <TabsContent value="registro" className="space-y-4 pt-4">
+                    <GastosTable gastos={gastos} acciones={<NuevoGastoDialog />} />
                 </TabsContent>
             </Tabs>
         </div>

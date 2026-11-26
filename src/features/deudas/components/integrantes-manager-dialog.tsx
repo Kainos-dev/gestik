@@ -219,7 +219,7 @@ export function IntegrantesManagerDialog({ integrantes }: { integrantes: Integra
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger render={<Button variant="outline">Gestionar integrantes</Button>} />
+            <DialogTrigger render={<Button variant="outline">Gestionar Integrantes</Button>} />
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Integrantes</DialogTitle>

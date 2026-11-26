@@ -22,6 +22,12 @@ export function textoCotizacionArq(c: CotizacionCripto): string {
     return `Dólar cripto venta ${formatCurrency(c.venta, 'ARS')} (${fechaHoraArgentina(c.actualizadaAt)}): estimación del costo de comprar los dólares en ARQ${c.desactualizada ? '. Desactualizada: DolarAPI no respondió y se usa el último valor guardado' : ''}`;
 }
 
+// USD de los gastos fijos anuales que no se pudieron pasar a pesos (sin cotización).
+function usdAnualesSinConvertir(delMes: GastosFijosDelMes): number {
+    const total = delMes.anuales.filter((g) => g.montoArs === null).reduce((s, g) => s + g.gastoFijo.monto, 0);
+    return Math.round(total * 100) / 100;
+}
+
 // Aviso común: con qué cotización se estimaron los USD (dólar cripto venta,
 // como costo aproximado de ARQ), si está desactualizada, o que no hay ninguna
 // y qué quedó afuera del total.
@@ -35,10 +41,20 @@ export function NotaCotizacionGastosFijos({
     const hayUsd = [...delMes.mensuales, ...delMes.anuales].some((g) => g.gastoFijo.moneda === 'USD');
     if (!hayUsd) return null;
     if (!cotizacion) {
+        // Mensuales y anuales por separado: los anuales nunca suman al total
+        // mensual, así que no se los nombra como "afuera del total" (y si sólo
+        // hay anuales en USD no aparece un engañoso "USD 0").
+        const anualesUsd = usdAnualesSinConvertir(delMes);
+        const partes: string[] = [];
+        if (delMes.usdSinConvertir > 0) {
+            partes.push(`${formatCurrency(delMes.usdSinConvertir, 'USD')} por mes no se pudieron pasar a pesos y no están en el total`);
+        }
+        if (anualesUsd > 0) {
+            partes.push(`los gastos anuales en dólares (${formatCurrency(anualesUsd, 'USD')} por año) tampoco se pudieron pasar a pesos`);
+        }
         return (
             <p className="text-xs text-amber-500">
-                Cotización del dólar cripto no disponible: {formatCurrency(delMes.usdSinConvertir, 'USD')} no se pudieron
-                pasar a pesos y no están en el total.
+                Cotización del dólar cripto no disponible: {partes.join('; ')}.
             </p>
         );
     }
@@ -66,12 +82,13 @@ export function GastosFijosTotal({
 }) {
     const porMonedaConMonto = delMes.porMoneda.filter((t) => t.total > 0);
     const anualesArs = delMes.anuales.reduce((s, g) => s + (g.montoArs ?? 0), 0);
+    const anualesUsdSinCotizacion = usdAnualesSinConvertir(delMes);
 
     return (
         <Card size="sm" className="py-3">
             <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
                 <div className="shrink-0">
-                    <p className="text-xs font-medium text-muted-foreground">Total de gastos fijos por mes</p>
+                    <p className="text-xs font-medium text-muted-foreground">Total de Gastos Fijos por Mes</p>
                     {delMes.mensuales.length ? (
                         <p className="text-2xl font-semibold tracking-tight">
                             {formatCurrency(delMes.totalMensualArs, 'ARS')}
@@ -87,7 +104,12 @@ export function GastosFijosTotal({
                         {porMonedaConMonto.length > 1 && (
                             <p>{porMonedaConMonto.map((t) => formatCurrency(t.total, t.moneda)).join(' + ')}</p>
                         )}
-                        {delMes.anuales.length > 0 && <p>Más gastos anuales: {formatCurrency(anualesArs, 'ARS')} por año</p>}
+                        {delMes.anuales.length > 0 && (
+                            <p>
+                                Más gastos anuales: {formatCurrency(anualesArs, 'ARS')}
+                                {anualesUsdSinCotizacion > 0 && ` + ${formatCurrency(anualesUsdSinCotizacion, 'USD')} sin cotización`} por año
+                            </p>
+                        )}
                     </div>
                 )}
 

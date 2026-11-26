@@ -20,7 +20,7 @@ export function NuevoGastoDialog() {
             <DialogTrigger render={<Button>+ Registrar gasto</Button>} />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Registrar gasto</DialogTitle>
+                    <DialogTitle>Registrar Gasto</DialogTitle>
                 </DialogHeader>
                 <GastoForm onSuccess={() => setOpen(false)} />
             </DialogContent>

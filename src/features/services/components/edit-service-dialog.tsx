@@ -35,7 +35,7 @@ export function EditarServicioDialog({
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar servicio</DialogTitle>
+          <DialogTitle>Editar Servicio</DialogTitle>
         </DialogHeader>
         <ServicioForm
           servicio={servicio}

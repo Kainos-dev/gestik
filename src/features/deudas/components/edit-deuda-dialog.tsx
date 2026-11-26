@@ -28,7 +28,7 @@ export function EditarDeudaDialog({ deuda, integrantes }: { deuda: Deuda; integr
             />
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editar deuda</DialogTitle>
+                    <DialogTitle>Editar Deuda</DialogTitle>
                 </DialogHeader>
                 <DeudaForm deuda={deuda} integrantes={integrantes} onSuccess={() => setOpen(false)} />
             </DialogContent>
